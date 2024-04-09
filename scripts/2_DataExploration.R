@@ -7,7 +7,9 @@ library(rworldmap)
 library(scales)
 library(maps)
 library(stringr)
-library(ggplot2))
+library(ggplot2)
+library(tidyr)
+library(dplyr)
 
 # loading in data
 Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
@@ -86,55 +88,75 @@ lapply(Euro_Invert_list, function(x){r_years <- range(x$year); l_years <- max(x$
 # number of years per study site
 lapply(Euro_Invert_list, function(x){(length(unique(x$year)))})
 
-# Sampled years for every country
+# Sampled years in every country
 sampling_years_countries <- lapply(Euro_Invert_list, function(x){unique(x$year)})
 
+# data frame for completeness of time series for every year
+completeness_timeseries_countries <- data.frame(Year = c(1968:2020))
 
-completeness_years_countries <- data.frame(Year = c(1968:2020))
-
+# study countries
 countries <- unique(Euro_Invert$country)
+
+# add a column for every study country
 for (i in 1:length(countries)){
-  completeness$test <- NA
-  names(completeness)[names(completeness) == "test"] <- countries[i]
+  completeness_timeseries_countries$tmp <- NA
+  names(completeness_timeseries_countries)[names(completeness_timeseries_countries) == "tmp"] <- countries[i]
 }
 
+# obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
 for (k in 1:length(countries)){
-for (i in 1968:2020) {
-  if(i %in% years_countries[[countries[k]]] == T){
-    completeness[completeness$Year == i, countries[k]] <- "Yes"
-  }
+  for (i in 1968:2020) {
+    if(i %in% years_countries[[countries[k]]] == T){
+      completeness_timeseries_countries[completeness_timeseries_countries$Year == i, countries[k]] <- "Yes"
+    }
   }
 }
 
-# code for the plot modified from the visdat package
-#vis_dat(completeness)
+# Plotting completeness of time series for every country
+# code for the plot modified from the visdat package 
+# actual function: vis_dat(df)
 
-try <- completeness %>%
-    tidyr::pivot_longer(
+# reorder dataframe (i.e. kind of appending columns)
+completeness_plot <- completeness_timeseries_countries %>%
+    pivot_longer(
       cols = -Year,
-      names_to = "variable",
-      values_to = "valueType",
-      values_transform = list(valueType = as.character)
+      names_to = "country",
+      values_to = "sampled",
+      values_transform = list(sampled = as.character)
     ) %>%
-    dplyr::arrange(Year, variable, valueType)
+    arrange(Year, country, sampled)
 
-  ggplot2::ggplot(data = try,
-                  ggplot2::aes(x = variable,
-                               y = Year,
-                               )) +
-    ggplot2::geom_raster(ggplot2::aes(fill = valueType)) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
-                                                       vjust = 1,
-                                                       hjust = 1)) +
-    ggplot2::labs(x = "",
-                  y = "Year") +
-    # flip the axes
-    ggplot2::scale_y_reverse() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(hjust = 0.5)) +
-    ggplot2::guides(colour = "none")
+ggplot(data = completeness_plot, aes(x = country, y = Year)) +
+    geom_raster(aes(fill = sampled)) + 
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+    labs(x = "", y = "Year") +
+    theme(axis.text.x = element_text(hjust = 0.5))+
+    scale_fill_manual(values = c("#FF6666", "#33CCFF"))
 
+  
+# Proportion of completeness for every country
+proportion_completeness_country <- data.frame(country = countries, p.miss = NA, p.pres = NA)
+for (i in 1:length(countries)) {
+  tmp <- subset(completeness_plot, completeness_plot$country == countries[i])
+  p_miss <- (mean(is.na(tmp$sampled)) * 100)
+  proportion_completeness_country[proportion_completeness_country$country == countries[i], "p.miss"] <- round(p_miss, 1)
+  proportion_completeness_country[proportion_completeness_country$country == countries[i], "p.pres"] <- round(100 - p_miss,1)
+}
 
+#present results as bar plot
+# change data frame to long format
+completeness.long <- data.frame(country = rep(proportion_completeness_country$country,2), 
+                                proportion = c(proportion_completeness_country$p.miss, proportion_completeness_country$p.pres),
+                                type = c(rep("p.miss", nrow(proportion_completeness_country)), rep("p.pres", nrow(proportion_completeness_country))))
+
+# plot results as bar plot
+ggplot(data = completeness.long, aes(x = country, y=proportion, fill = type))+
+  geom_bar(position = "stack", stat = "identity")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Proportion") +
+  theme(axis.text.x = element_text(hjust = 0.5))
 
 # Taxa ----------
 # split species and genus
