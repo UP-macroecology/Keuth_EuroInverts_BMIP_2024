@@ -10,6 +10,15 @@ library(stringr)
 library(ggplot2)
 library(tidyr)
 library(dplyr)
+library(tidyverse)
+library(tibble)
+
+#Loading functions
+# capitalization 
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
 
 # loading in data
 Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
@@ -76,7 +85,17 @@ plot(newmap,col=col,
 
 # number of study sites in total and per country
 length(unique(Euro_Invert$study_site)) #43
-lapply(Euro_Invert_list, function(x){length(unique(x$study_site))})
+no_studysites <- lapply(Euro_Invert_list, function(x){length(unique(x$study_site))})
+no_studysites <- do.call(rbind, no_studysites)
+no_studysites <- as.data.frame(no_studysites)
+no_studysites <- tibble::rownames_to_column(no_studysites, "country")
+
+ggplot(no_studysites, aes(x=country, y= V1))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))
 
 # Time coverage -------------
 # time span and length of observation years
@@ -106,7 +125,7 @@ for (i in 1:length(countries)){
 # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
 for (k in 1:length(countries)){
   for (i in 1968:2020) {
-    if(i %in% years_countries[[countries[k]]] == T){
+    if(i %in% sampling_years_countries[[countries[k]]] == T){
       completeness_timeseries_countries[completeness_timeseries_countries$Year == i, countries[k]] <- "Yes"
     }
   }
@@ -159,6 +178,107 @@ ggplot(data = completeness.long, aes(x = country, y=proportion, fill = type))+
   theme(axis.text.x = element_text(hjust = 0.5))
 
 # Taxa ----------
-# split species and genus
-Euro_Invert[,c("genus", "species")] <- str_split_fixed(Euro_Invert$taxon, " ", 2)
-unique(Euro_Invert$genus)
+
+# prepare species, genus and family
+Euro_Invert[which(Euro_Invert$taxon == "\"Ancylidae\" Gen. sp."),"taxon"] <- "Ancylidae Gen. sp." #fix misspelling"
+Euro_Invert[which(Euro_Invert$taxon == "Eukiefferiella ceigr."),"taxon"] <- "Eukiefferiella sp." #fix misspelling"
+Euro_Invert[which(Euro_Invert$taxon == "Thienemannimyia , gen. indet."),"taxon"] <- "Thienemannimyia sp." #fix misspelling"
+Euro_Invert[which(Euro_Invert$taxon == "Corbicula \"fluminalis\""),"taxon"] <- "Corbicula fluminalis"
+
+#Euro_Invert[which(Euro_Invert$taxon == "Eukiefferiella ceigr,"),"taxon"] <- "Ancylidae Gen. sp." #fix misspelling"
+#remove abbreviations ?to subspecies?
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " Lv.")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " Ad.")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " ssp.")
+Euro_Invert$taxon <- str_replace(Euro_Invert$taxon, "-", " -")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -gr.")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -agg.")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -Gr.")
+Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -Agg.")
+
+#try <- as.data.frame(sort(unique(Euro_Invert$taxon)))
+
+#remove wrong capitalization
+Euro_Invert$taxon <- str_to_lower(Euro_Invert$taxon)
+Euro_Invert$taxon <- firstup(Euro_Invert$taxon)
+
+#replicate taxa column to species, genus, family and order
+Euro_Invert$species <- Euro_Invert$taxon
+Euro_Invert$genus <- Euro_Invert$taxon
+Euro_Invert$family <- Euro_Invert$taxon
+Euro_Invert$order <- Euro_Invert$taxon
+
+# extract cells with "sp."
+row_index <- grep("sp.",Euro_Invert[,"species"])
+Euro_Invert[row_index, "species"] <- NA
+
+#extract cells with / in species
+row_index <- grep("/",Euro_Invert[,"species"])
+Euro_Invert[row_index, "species"] <- NA
+
+#extract cells with gen. sp. in species
+row_index <- grep(" gen. ",Euro_Invert[,"species"])
+Euro_Invert[row_index, "species"] <- NA
+
+#remove subspecies
+Euro_Invert <- Euro_Invert%>%
+  as_tibble() %>%
+  mutate(
+    species = map_chr(
+      str_split(species, pattern = "\\s+"),
+      ~ str_flatten(.x[1:2], " ")))
+
+#back transform to data frame
+Euro_Invert <- as.data.frame(Euro_Invert)
+
+#remove families
+row_index <- grep("gen. sp.",Euro_Invert[,"genus"])
+Euro_Invert[row_index, "genus"] <- NA
+
+#remove 2nd word
+Euro_Invert <- Euro_Invert%>%
+  as_tibble() %>%
+  mutate(
+    genus = map_chr(
+      str_split(genus, pattern = "\\s+"),
+      ~ str_flatten(.x[1], " ")))
+
+#back transform to data frame
+Euro_Invert <- as.data.frame(Euro_Invert)
+
+#remove unclear genus identification
+row_index <- grep("/",Euro_Invert[,"genus"])
+Euro_Invert[row_index, "genus"] <- NA
+
+#try <- as.data.frame(sort(unique(Euro_Invert$genus)))
+
+# Overall number of species & genus
+length(unique(Euro_Invert$genus))
+length(unique(Euro_Invert$species))
+
+#Number of species & genus per country
+Euro_Invert_list <- split(Euro_Invert, Euro_Invert$country)
+no_species <- lapply(Euro_Invert_list, function(x){length(unique(x$species))})
+no_species <- do.call(rbind, no_species)
+no_species <- as.data.frame(no_species)
+no_species <- tibble::rownames_to_column(no_species, "country")
+ggplot(no_species, aes(x=country, y= V1))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Number of species")
+
+no_genus <- lapply(Euro_Invert_list, function(x){length(unique(x$genus))})
+no_genus <- do.call(rbind, no_genus)
+no_genus <- as.data.frame(no_genus)
+no_genus <- tibble::rownames_to_column(no_genus, "country")
+ggplot(no_genus, aes(x=country, y= V1))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Number of genus")
+
