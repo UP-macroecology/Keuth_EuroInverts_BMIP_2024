@@ -55,4 +55,4 @@ raw_freshinv <- do.call(rbind, raw_freshinv_list)
 rownames(raw_freshinv) <- NULL #remove row names
 
 # save large data frame
-write.csv(raw_freshinv, "data/Euro_FreshInv_raw.csv", row.names = F)
+write.csv(raw_freshinv, "data/Euro_FreshInv_all_sites.csv", row.names = F)
