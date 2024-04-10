@@ -6,6 +6,9 @@ output:
     toc: yes
     toc-title: TOC
 ---
+```{r, include=F}
+# This code plus additional code with all comments and explanation can be found in 2_DataExploration
+```
 
 ```{r setup, include=FALSE}
 setwd("/home/keuth/Documents/BMIP Workshop/BMIP Aquatic freshwater data/")
@@ -26,18 +29,22 @@ firstup <- function(x) {
   x
 }
 
+# Load in data
 Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
+
+# study countries
+countries <- unique(Euro_Invert$country)
+# study sites
+studysites <- unique(Euro_Invert$study_site)
 ```
 
-## Spatial cover
+## Spatial coverage
 
-In total data from 22 countries is available.
+In total data from these 22 countries is available:
 
 ```{r, echo=FALSE}
 # Plotting study countries (code obtained from the paper)
 world_map <- maps::map("world", plot=FALSE)
-#world_map$names
-#getMap()$NAME
 
 ddf = read.table(text="
 country
@@ -80,14 +87,14 @@ wv<-seq(1, 1, length.out=253)
 wv[58:59] <- c(0)
 
 plot(newmap,col=col,
-     bg="white",border=col2, #bg="lightblue",border="grey70",
+     bg="white",border=col2,
      xlim = c(-10, 34),
      ylim = c(35, 70),
      asp = 1,lwd=wv
 )
 ```
 
-These countries have different amounts of study sites:
+In total 43 different study sites were sampled. The study sites are unevenly distributed between the countries:
  
 ```{r, echo=FALSE}
 Euro_Invert_list <- split(Euro_Invert, Euro_Invert$country)
@@ -101,12 +108,27 @@ ggplot(no_studysites, aes(x=country, y= V1))+
   labs(x = "", y = "")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 70,vjust = 1, hjust = 1)) +
-  theme(axis.text.x = element_text(hjust = 1))
+  theme(axis.text.x = element_text(hjust = 1))+
+  ggtitle("Number of study sites per country")
 ```
- 
-## Time cover
 
-In general the whole data set ranges from 1968 to 2020, so 52 years. But not all years are covered in every country:
+## Number of records
+
+```{r, echo = FALSE}
+no_records_country <- as.data.frame(table(Euro_Invert$country))
+
+ggplot(no_records_country, aes(x=Var1, y= Freq))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Number of records per country")
+```
+
+## Time coverage
+
+The data set ranges from 1968 to 2020 (52 years). But not all years were sampled in every country and at every study site:
 
 ```{r pressure, echo=FALSE}
 # Sampled years in every country
@@ -148,13 +170,13 @@ completeness_plot <- completeness_timeseries_countries %>%
     arrange(Year, country, sampled)
 
 ggplot(data = completeness_plot, aes(x = country, y = Year)) +
-    geom_raster(aes(fill = sampled)) + 
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
-    labs(x = "", y = "Year") +
-    theme(axis.text.x = element_text(hjust = 0.5))+
-    scale_fill_manual(values = c("#FF6666", "#33CCFF"))+
-  ggtitle("Coverage of sampled years")
+  geom_raster(aes(fill = sampled)) + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Year") +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  scale_fill_manual("Sampled?", values = "#FF6666", labels = c("Yes", "No"))+
+  ggtitle("Coverage of sampled years per country")
 
   
 # Proportion of completeness for every country
@@ -179,7 +201,8 @@ ggplot(data = completeness.long, aes(x = country, y=proportion, fill = type))+
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
   labs(x = "", y = "Proportion") +
   theme(axis.text.x = element_text(hjust = 0.5))+
-  ggtitle("Proportion of missing years")
+  ggtitle("Proportion of missing/ sampled years per country")+
+  scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF"), labels = c("Missing", "Sampled"))
 ```
 
 ## Taxa coverage
@@ -192,7 +215,6 @@ Euro_Invert[which(Euro_Invert$taxon == "Eukiefferiella ceigr."),"taxon"] <- "Euk
 Euro_Invert[which(Euro_Invert$taxon == "Thienemannimyia , gen. indet."),"taxon"] <- "Thienemannimyia sp." #fix misspelling"
 Euro_Invert[which(Euro_Invert$taxon == "Corbicula \"fluminalis\""),"taxon"] <- "Corbicula fluminalis"
 
-#Euro_Invert[which(Euro_Invert$taxon == "Eukiefferiella ceigr,"),"taxon"] <- "Ancylidae Gen. sp." #fix misspelling"
 #remove abbreviations ?to subspecies?
 Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " Lv.")
 Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " Ad.")
@@ -202,8 +224,6 @@ Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -gr.")
 Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -agg.")
 Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -Gr.")
 Euro_Invert$taxon <- str_remove(Euro_Invert$taxon, " -Agg.")
-
-#try <- as.data.frame(sort(unique(Euro_Invert$taxon)))
 
 #remove wrong capitalization
 Euro_Invert$taxon <- str_to_lower(Euro_Invert$taxon)
@@ -282,4 +302,165 @@ ggplot(no_genus, aes(x=country, y= V1))+
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Number of genus")
 ```
+
+```{r, echo = F}
+# Proportion of taxon level
+#extract level of determining individual
+Euro_Invert$taxon_level <- NA
+
+Euro_Invert[which(!is.na(Euro_Invert$species)), "taxon_level"] <- "s"
+Euro_Invert[which(is.na(Euro_Invert$taxon_level) & !is.na(Euro_Invert$genus)), "taxon_level"] <- "g"
+Euro_Invert[which(is.na(Euro_Invert$taxon_level)), "taxon_level"] <- "c"
+
+#Euro_Invert_list <- split(Euro_Invert, Euro_Invert$country)
+
+proportion_taxon_level <- data.frame(country = countries, per_sp = NA, per_g = NA, per_c = NA)
+
+for (i in 1:length(countries)) {
+  tmp <- subset(Euro_Invert, Euro_Invert$country == countries[i])
+  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_sp"] <- (length(which(tmp$taxon_level == "s"))/ nrow(tmp))*100
+  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_g"] <- (length(which(tmp$taxon_level == "g"))/ nrow(tmp))*100
+  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_c"] <- (length(which(tmp$taxon_level == "c"))/ nrow(tmp))*100
+}
+
+# change data frame to long format
+completeness.long_taxon <- data.frame(country = rep(proportion_taxon_level$country,3), 
+                                proportion = c(proportion_taxon_level$per_sp, proportion_taxon_level$per_g, proportion_taxon_level$per_c),
+                                type = c(rep("per.species", nrow(proportion_taxon_level)), rep("per.genus", nrow(proportion_taxon_level)), rep("per.coarser", nrow(proportion_taxon_level))))
+
+# plot results as bar plot
+ggplot(data = completeness.long_taxon, aes(x = country, y=proportion, fill = type))+
+  geom_bar(position = "stack", stat = "identity")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Proportion") +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Proportion of taxon level per country")+
+  scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Species", "Genus"))
+```
+
+## Number of records per study site
+```{r, echo = F, fig.width = 10, fig.height = 12}
+countries <- unique(Euro_Invert$country)
+no_records_studysite <- as.data.frame(table(Euro_Invert$study_site))
+
+# add column with country
+no_records_studysite$country <- NA
+for (k in 1:length(countries)) {
+  row_index <- grep(countries[k],no_records_studysite[,"Var1"])
+  no_records_studysite[row_index, "country"] <- countries[k]
+}
+
+ggplot(no_records_studysite, aes(x=Var1, y= Freq))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 1))+
+  ggtitle("Number of records per study site")+
+  facet_wrap(~country, scales = "free_x")
+```
+
+## Time coverage per study site
+
+```{r, echo =F,fig.width = 10, fig.height = 12}
+# Time coverage per study site
+# Create list with the different countries as elements
+Euro_Invert_list_studysite <- split(Euro_Invert, Euro_Invert$study_site)
+
+# Sampled years in every country
+sampling_years_studysite <- lapply(Euro_Invert_list_studysite, function(x){unique(x$year)})
+
+# data frame for completeness of time series for every year
+completeness_timeseries_studysite <- data.frame(Year = c(1968:2020))
+
+# study countries
+studysites <- unique(Euro_Invert$study_site)
+
+# add a column for every study site
+for (i in 1:length(studysites)){
+  completeness_timeseries_studysite$tmp <- NA
+  names(completeness_timeseries_studysite)[names(completeness_timeseries_studysite) == "tmp"] <- studysites[i]
+}
+
+# obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
+for (k in 1:length(studysites)){
+  for (i in 1968:2020) {
+    if(i %in% sampling_years_studysite[[studysites[k]]] == T){
+      completeness_timeseries_studysite[completeness_timeseries_studysite$Year == i, studysites[k]] <- "Yes"
+    }
+  }
+}
+
+# Plotting completeness of time series for every country
+# code for the plot modified from the visdat package 
+# actual function: vis_dat(df)
+
+# reorder dataframe (i.e. kind of appending columns)
+completeness_plot_studysites <- completeness_timeseries_studysite %>%
+  pivot_longer(
+    cols = -Year,
+    names_to = "studysites",
+    values_to = "sampled",
+    values_transform = list(sampled = as.character)
+  ) %>%
+  arrange(Year, studysites, sampled)
+
+completeness_plot_studysites <- as.data.frame(completeness_plot_studysites)
+
+# add column with country
+completeness_plot_studysites$country <- NA
+for (k in 1:length(countries)) {
+    row_index <- grep(countries[k],completeness_plot_studysites[,"studysites"])
+    completeness_plot_studysites[row_index, "country"] <- countries[k]
+}
+
+#Plot results
+ggplot(data = completeness_plot_studysites, aes(x = studysites, y = Year)) +
+  geom_raster(aes(fill = sampled)) + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Year") +
+  theme(axis.text.x = element_text(hjust = 1), strip.text = element_text(size = 12))+
+  scale_fill_manual("Sampled?", values = "#FF6666", labels = c("Yes", "No"))+
+  ggtitle("Coverage of sampled years per study site")+
+  facet_wrap(~country, scales = "free_x")
+```
+```{r, echo = F,fig.width = 10, fig.height = 12}
+# Proportion of completeness for every country
+proportion_completeness_studysite <- data.frame(studysite = studysites, p.miss = NA, p.pres = NA)
+for (i in 1:length(studysites)) {
+  index_studysite <- studysites[i]
+  tmp <- subset(completeness_plot_studysites, completeness_plot_studysites$studysite == index_studysite)
+  p_miss <- (mean(is.na(tmp$sampled)) * 100)
+  proportion_completeness_studysite[proportion_completeness_studysite$studysite == studysites[i], "p.miss"] <- round(p_miss, 1)
+  proportion_completeness_studysite[proportion_completeness_studysite$studysite == studysites[i], "p.pres"] <- round(100 - p_miss,1)
+}
+
+#present results as bar plot
+# change data frame to long format
+completeness.long_studysite <- data.frame(studysite = rep(proportion_completeness_studysite$studysite,2), 
+                                proportion = c(proportion_completeness_studysite$p.miss, proportion_completeness_studysite$p.pres),
+                                type = c(rep("p.miss", nrow(proportion_completeness_studysite)), rep("p.pres", nrow(proportion_completeness_studysite))))
+
+# add column with country
+completeness.long_studysite$country <- NA
+for (k in 1:length(countries)) {
+  row_index <- grep(countries[k],completeness.long_studysite[,"studysite"])
+  completeness.long_studysite[row_index, "country"] <- countries[k]
+}
+
+# plot results as bar plot
+ggplot(data = completeness.long_studysite, aes(x = studysite, y=proportion, fill = type))+
+  geom_bar(position = "stack", stat = "identity")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Proportion") +
+  theme(axis.text.x = element_text(hjust = 1))+
+  ggtitle("Proportion of missing/ sampled years per study site")+
+  scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF"), labels = c("Missing", "Sampled"))+
+  facet_wrap(~country, scales = "free_x")
+```
+
+## Taxa coverage per study site
 
