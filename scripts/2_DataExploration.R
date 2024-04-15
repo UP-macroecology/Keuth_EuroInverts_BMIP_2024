@@ -25,7 +25,7 @@ Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
 # study countries
 countries <- unique(Euro_Invert$country)
 # study sites
-studysites <- unique(Euro_Invert$study_site)
+study_sites <- unique(Euro_Invert$study_site)
 
 # Countries ------------
 # number of countries
@@ -33,8 +33,6 @@ length(unique(Euro_Invert$country)) #22
 
 # Plotting study countries (code obtained from the paper)
 world_map <- map("world", plot=FALSE)
-world_map$names
-getMap()$NAME
 
 ddf = read.table(text="
 country
@@ -92,13 +90,14 @@ length(unique(Euro_Invert$study_site)) #43
 Euro_Invert_list <- split(Euro_Invert, Euro_Invert$country)
 
 #number of study sites per country
-no_studysites <- lapply(Euro_Invert_list, function(x){length(unique(x$study_site))})
-no_studysites <- do.call(rbind, no_studysites)
-no_studysites <- as.data.frame(no_studysites)
-no_studysites <- tibble::rownames_to_column(no_studysites, "country")
+Euro_Invert_info_countries <- lapply(Euro_Invert_list, function(x){length(unique(x$study_site))})
+Euro_Invert_info_countries <- do.call(rbind, Euro_Invert_info_countries)
+Euro_Invert_info_countries <- as.data.frame(Euro_Invert_info_countries)
+Euro_Invert_info_countries <- tibble::rownames_to_column(Euro_Invert_info_countries, "country")
+colnames(Euro_Invert_info_countries) <- c("country", "no_studysites")
 
 # Plot number of study sites per country
-ggplot(no_studysites, aes(x=country, y= V1))+
+ggplot(Euro_Invert_info_countries, aes(x=country, y= no_studysites))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
   theme_minimal() +
@@ -144,7 +143,7 @@ for (k in 1:length(countries)){
 # actual function: vis_dat(df)
 
 # reorder dataframe to long format (kind of appending columns)
-completeness_plot_country <- completeness_timeseries_countries %>%
+completeness_timeseries_countries_long <- completeness_timeseries_countries %>%
     pivot_longer(
       cols = -Year,
       names_to = "country",
@@ -154,7 +153,7 @@ completeness_plot_country <- completeness_timeseries_countries %>%
     arrange(Year, country, sampled)
 
 #Plot the completeness of sampled years per country
-ggplot(data = completeness_plot_country, aes(x = country, y = Year)) +
+ggplot(data = completeness_timeseries_countries_long, aes(x = country, y = Year)) +
   geom_raster(aes(fill = sampled)) + 
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
@@ -165,22 +164,24 @@ ggplot(data = completeness_plot_country, aes(x = country, y = Year)) +
 
   
 # Proportion of completeness for every country
-proportion_completeness_country <- data.frame(country = countries, p.miss = NA, p.pres = NA)
+Euro_Invert_info_countries$p_years_miss <- NA
+Euro_Invert_info_countries$p_years_pres <- NA
+
 # Calculate proportion of present years and proportion of missing years
 for (i in 1:length(countries)) {
-  tmp <- subset(completeness_plot, completeness_plot$country == countries[i])
+  tmp <- subset(completeness_timeseries_countries_long, completeness_timeseries_countries_long$country == countries[i])
   p_miss <- (mean(is.na(tmp$sampled)) * 100)
-  proportion_completeness_country[proportion_completeness_country$country == countries[i], "p.miss"] <- round(p_miss, 1)
-  proportion_completeness_country[proportion_completeness_country$country == countries[i], "p.pres"] <- round(100 - p_miss,1)
+  Euro_Invert_info_countries[Euro_Invert_info_countries$country == countries[i], "p_years_miss"] <- round(p_miss, 1)
+  Euro_Invert_info_countries[Euro_Invert_info_countries$country == countries[i], "p_years_pres"] <- round(100 - p_miss,1)
 }
 
 # change data frame to long format
-completeness_long <- data.frame(country = rep(proportion_completeness_country$country,2), 
-                                proportion = c(proportion_completeness_country$p.miss, proportion_completeness_country$p.pres),
-                                type = c(rep("p.miss", nrow(proportion_completeness_country)), rep("p.pres", nrow(proportion_completeness_country))))
+proportion_completeness_timeseries_countries_long <- data.frame(country = rep(Euro_Invert_info_countries$country,2), 
+                                proportion = c(Euro_Invert_info_countries$p_years_miss, Euro_Invert_info_countries$p_years_pres),
+                                type = c(rep("p_years_miss", nrow(Euro_Invert_info_countries)), rep("p_years_pres", nrow(Euro_Invert_info_countries))))
 
 # plot results as bar plot
-ggplot(data = completeness_long, aes(x = country, y=proportion, fill = type))+
+ggplot(data = proportion_completeness_timeseries_countries_long, aes(x = country, y=proportion, fill = type))+
   geom_bar(position = "stack", stat = "identity")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
@@ -200,41 +201,41 @@ sampling_years_studysite <- lapply(Euro_Invert_list_studysite, function(x){uniqu
 completeness_timeseries_studysite <- data.frame(Year = c(1968:2020))
 
 # add a column for every study site
-for (i in 1:length(studysites)){
+for (i in 1:length(study_sites)){
   completeness_timeseries_studysite$tmp <- NA
-  names(completeness_timeseries_studysite)[names(completeness_timeseries_studysite) == "tmp"] <- studysites[i]
+  names(completeness_timeseries_studysite)[names(completeness_timeseries_studysite) == "tmp"] <- study_sites[i]
 }
 
 # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
-for (k in 1:length(studysites)){
+for (k in 1:length(study_sites)){
   for (i in 1968:2020) {
-    if(i %in% sampling_years_studysite[[studysites[k]]] == T){
-      completeness_timeseries_studysite[completeness_timeseries_studysite$Year == i, studysites[k]] <- "Yes"
+    if(i %in% sampling_years_studysite[[study_sites[k]]] == T){
+      completeness_timeseries_studysite[completeness_timeseries_studysite$Year == i, study_sites[k]] <- "Yes"
     }
   }
 }
 
 # reorder dataframe to long format (kind of appending columns)
-completeness_plot_studysites <- completeness_timeseries_studysite %>%
+completeness_timeseries_studysites_long <- completeness_timeseries_studysite %>%
   pivot_longer(
     cols = -Year,
-    names_to = "studysites",
+    names_to = "study_sites",
     values_to = "sampled",
     values_transform = list(sampled = as.character)
   ) %>%
-  arrange(Year, studysites, sampled)
+  arrange(Year, study_sites, sampled)
 
-completeness_plot_studysites <- as.data.frame(completeness_plot_studysites)
+completeness_timeseries_studysites_long <- as.data.frame(completeness_timeseries_studysites_long)
 
 # add column with country
-completeness_plot_studysites$country <- NA
+completeness_timeseries_studysites_long$country <- NA
 for (k in 1:length(countries)) {
-    row_index <- grep(countries[k],completeness_plot_studysites[,"studysites"])
-    completeness_plot_studysites[row_index, "country"] <- countries[k]
+    row_index <- grep(countries[k],completeness_timeseries_studysites_long[,"study_sites"])
+    completeness_timeseries_studysites_long[row_index, "country"] <- countries[k]
 }
 
 # Plot results of completeness
-ggplot(data = completeness_plot_studysites, aes(x = studysites, y = Year)) +
+ggplot(data = completeness_timeseries_studysites_long, aes(x = study_sites, y = Year)) +
   geom_raster(aes(fill = sampled)) + 
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
@@ -245,30 +246,31 @@ ggplot(data = completeness_plot_studysites, aes(x = studysites, y = Year)) +
   facet_wrap(~country, scales = "free_x")
 
 # Proportion of completeness for every study site
-proportion_completeness_studysite <- data.frame(studysite = studysites, p.miss = NA, p.pres = NA)
+Euro_Invert_info_studysites <- data.frame(study_site = study_sites, p_years_miss = NA, p_years_pres = NA)
 #Calculate proportion of missing and sampled years
-for (i in 1:length(studysites)) {
-  index_studysite <- studysites[i]
-  tmp <- subset(completeness_plot_studysites, completeness_plot_studysites$studysite == index_studysite)
+for (i in 1:length(study_sites)) {
+  index_studysite <- study_sites[i]
+  tmp <- subset(completeness_timeseries_studysites_long, completeness_timeseries_studysites_long$study_site == index_studysite)
   p_miss <- (mean(is.na(tmp$sampled)) * 100)
-  proportion_completeness_studysite[proportion_completeness_studysite$studysite == studysites[i], "p.miss"] <- round(p_miss, 1)
-  proportion_completeness_studysite[proportion_completeness_studysite$studysite == studysites[i], "p.pres"] <- round(100 - p_miss,1)
+  Euro_Invert_info_studysites[Euro_Invert_info_studysites$study_site == study_sites[i], "p_years_miss"] <- round(p_miss, 1)
+  Euro_Invert_info_studysites[Euro_Invert_info_studysites$study_site == study_sites[i], "p_years_pres"] <- round(100 - p_miss,1)
+  rm(p_miss, index_studysite, tmp)
 }
 
 # change data frame to long format
-completeness_long_studysite <- data.frame(studysite = rep(proportion_completeness_studysite$studysite,2), 
-                                proportion = c(proportion_completeness_studysite$p.miss, proportion_completeness_studysite$p.pres),
-                                type = c(rep("p.miss", nrow(proportion_completeness_studysite)), rep("p.pres", nrow(proportion_completeness_studysite))))
+proportion_completeness_timeseries_studysites_long <- data.frame(study_site = rep(Euro_Invert_info_studysites$study_site,2), 
+                                proportion = c(Euro_Invert_info_studysites$p_years_miss, Euro_Invert_info_studysites$p_years_pres),
+                                type = c(rep("p.miss", nrow(Euro_Invert_info_studysites)), rep("p.pres", nrow(Euro_Invert_info_studysites))))
 
 # add column with country
-completeness_long_studysite$country <- NA
+proportion_completeness_timeseries_studysites_long$country <- NA
 for (k in 1:length(countries)) {
-  row_index <- grep(countries[k],completeness_long_studysite[,"studysite"])
-  completeness_long_studysite[row_index, "country"] <- countries[k]
+  row_index <- grep(countries[k], proportion_completeness_timeseries_studysites_long[,"study_site"])
+  proportion_completeness_timeseries_studysites_long[row_index, "country"] <- countries[k]
 }
 
 # plot results as bar plot
-ggplot(data = completeness_long_studysite, aes(x = studysite, y=proportion, fill = type))+
+ggplot(data = proportion_completeness_timeseries_studysites_long, aes(x = study_site, y=proportion, fill = type))+
   geom_bar(position = "stack", stat = "identity")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
@@ -281,10 +283,11 @@ ggplot(data = completeness_long_studysite, aes(x = studysite, y=proportion, fill
 # Number of records ---------
 
 # for every country
-no_records_country <- as.data.frame(table(Euro_Invert$country))
+Euro_Invert_info_countries <- merge(Euro_Invert_info_countries, table(Euro_Invert$country), by.x = "country", by.y = "Var1")
+colnames(Euro_Invert_info_countries)[colnames(Euro_Invert_info_countries) == "Freq"] <- "no_records"
 
 # Plot number of records
-ggplot(no_records_country, aes(x=Var1, y= Freq))+
+ggplot(Euro_Invert_info_countries, aes(x=country, y= no_records))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
   theme_minimal() +
@@ -293,17 +296,18 @@ ggplot(no_records_country, aes(x=Var1, y= Freq))+
   ggtitle("Number of records per country")
 
 # for every study site
-no_records_studysite <- as.data.frame(table(Euro_Invert$study_site))
+Euro_Invert_info_studysites <- merge(Euro_Invert_info_studysites, table(Euro_Invert$study_site), by.x = "study_site", by.y = "Var1")
+colnames(Euro_Invert_info_studysites)[colnames(Euro_Invert_info_studysites) == "Freq"] <- "no_records"
 
 # add column with country
-no_records_studysite$country <- NA
+Euro_Invert_info_studysites$country <- NA
 for (k in 1:length(countries)) {
-  row_index <- grep(countries[k],no_records_studysite[,"Var1"])
-  no_records_studysite[row_index, "country"] <- countries[k]
+  row_index <- grep(countries[k],Euro_Invert_info_studysites[,"study_site"])
+  Euro_Invert_info_studysites[row_index, "country"] <- countries[k]
 }
 
 # Plot results
-ggplot(no_records_studysite, aes(x=Var1, y= Freq))+
+ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_records))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
   theme_minimal() +
@@ -385,9 +389,36 @@ Euro_Invert[which(!is.na(Euro_Invert$genus)), "coarser"] <- NA
 
 #remove gen.sp. from coarser column
 Euro_Invert$coarser <- str_remove(Euro_Invert$coarser, "gen. sp.")
+
+# remove unclear coarser identification
+Euro_Invert[which(Euro_Invert$coarser == "Anax/hemianax sp."),"coarser"] <- "Aeshnidae"
+Euro_Invert[which(Euro_Invert$coarser == "Annitella/chaetopteryx sp."),"coarser"] <- "Limnephilidae"
+Euro_Invert[which(Euro_Invert$coarser == "Atherix/ibisia sp."),"coarser"] <- "Athericidae"
+Euro_Invert[which(Euro_Invert$coarser == "Ceratopogoninae "),"coarser"] <- "Ceratopogonidae"
+Euro_Invert[which(Euro_Invert$coarser == "Ceratopogoninae/palpomyiinae "),"coarser"] <- "Ceratopogonidae"
+Euro_Invert[which(Euro_Invert$coarser == "Chaetopterygini/stenophylacini "),"coarser"] <- "Limnephilidae"
+Euro_Invert[which(Euro_Invert$coarser == "Chelifera/hemerodromia sp."),"coarser"] <- "Empididae"
+Euro_Invert[which(Euro_Invert$coarser == "Corixinae "),"coarser"] <- "Corixidae"
+Euro_Invert[which(Euro_Invert$coarser == "Crangonyx/niphargus sp."),"coarser"] <- "Amphipoda"
+Euro_Invert[which(Euro_Invert$coarser == "Gammaroidea "),"coarser"] <- "Gammaridea"
+Euro_Invert[which(Euro_Invert$coarser == "Glossosomatinae "),"coarser"] <- "Glossosomatidae"
+Euro_Invert[which(Euro_Invert$coarser == "Habroleptoides/paraleptophlebia sp."),"coarser"] <- "Leptobhlebiidae"
+Euro_Invert[which(Euro_Invert$coarser == "Hydraeninae "),"coarser"] <- "Hydraenidae"
+Euro_Invert[which(Euro_Invert$coarser == "Tubificidae "),"coarser"] <- "Naididae"
+Euro_Invert[which(Euro_Invert$coarser == "Naididae/tubificidae "),"coarser"] <- "Naididae"
+Euro_Invert[which(Euro_Invert$coarser == "Tipulinae "),"coarser"] <- "Tipulidae"
+Euro_Invert[which(Euro_Invert$coarser == "Sciomyzinae "),"coarser"] <- "Sciomyzidae"
+Euro_Invert[which(Euro_Invert$coarser == "Psychomyiinae "),"coarser"] <- "Psychomyiidae"
+Euro_Invert[which(Euro_Invert$coarser == "Philopotaminae "),"coarser"] <- "Philopotamidae"
+Euro_Invert[which(Euro_Invert$coarser == "Perlidae/perlodidae "),"coarser"] <- "Plecoptera"
+Euro_Invert[which(Euro_Invert$coarser == "Micropsectra/tanytarsus sp."),"coarser"] <- "Chironomidae"
+Euro_Invert[which(Euro_Invert$coarser == "Limnephilinae"),"coarser"] <- "Limnephilidae"
+Euro_Invert[which(Euro_Invert$coarser == "Leuctridae/capniidae "),"coarser"] <- "Plecoptera"
+Euro_Invert[which(Euro_Invert$coarser == "Lepidostomatinae "),"coarser"] <- "Lepidostomatidae"
+Euro_Invert[which(Euro_Invert$coarser == "Hydrophilinae "),"coarser"] <- "Hydrophilidae"
 Euro_Invert$coarser <- str_remove(Euro_Invert$coarser, " ")
 
-#try <- as.data.frame(sort(unique(Euro_Invert$genus)))
+#try <- as.data.frame(sort(unique(Euro_Invert$coarser)))
 
 # Overall number of species & genus
 length(unique(Euro_Invert$genus))
@@ -401,30 +432,73 @@ no_species <- lapply(Euro_Invert_list, function(x){length(unique(x$species))})
 no_species <- do.call(rbind, no_species)
 no_species <- as.data.frame(no_species)
 no_species <- tibble::rownames_to_column(no_species, "country")
+Euro_Invert_info_countries <- merge(Euro_Invert_info_countries, no_species, by = "country")
+colnames(Euro_Invert_info_countries)[colnames(Euro_Invert_info_countries) == "V1"] <- "no_species"
 
 # Plot number of species per country
-ggplot(no_species, aes(x=country, y= V1))+
+ggplot(Euro_Invert_info_countries, aes(x=country, y= no_species))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
   theme(axis.text.x = element_text(hjust = 0.5))+
-  ggtitle("Number of species")
+  ggtitle("Number of species per country")
 
 # number of genus per country
 no_genus <- lapply(Euro_Invert_list, function(x){length(unique(x$genus))})
 no_genus <- do.call(rbind, no_genus)
 no_genus <- as.data.frame(no_genus)
 no_genus <- tibble::rownames_to_column(no_genus, "country")
+Euro_Invert_info_countries <- merge(Euro_Invert_info_countries, no_genus, by = "country")
+colnames(Euro_Invert_info_countries)[colnames(Euro_Invert_info_countries) == "V1"] <- "no_genus"
 
 # Plot number of genus per country
-ggplot(no_genus, aes(x=country, y= V1))+
+ggplot(Euro_Invert_info_countries, aes(x=country, y= no_genus))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
   theme(axis.text.x = element_text(hjust = 0.5))+
-  ggtitle("Number of genus")
+  ggtitle("Number of genus per study site")
+
+#Number of species & genus per study_site
+Euro_Invert_list_studysite <- split(Euro_Invert, Euro_Invert$study_site)
+
+# number of species per study site
+no_species <- lapply(Euro_Invert_list_studysite, function(x){length(unique(x$species))})
+no_species <- do.call(rbind, no_species)
+no_species <- as.data.frame(no_species)
+no_species <- tibble::rownames_to_column(no_species, "study_site")
+Euro_Invert_info_studysites <- merge(Euro_Invert_info_studysites, no_species, by = "study_site")
+colnames(Euro_Invert_info_studysites)[colnames(Euro_Invert_info_studysites) == "V1"] <- "no_species"
+
+# Plot number of species per study site
+ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_species))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Number of species per study site")+
+  facet_wrap(~country, scales = "free_x")
+
+# number of genus per study site
+no_genus <- lapply(Euro_Invert_list_studysite, function(x){length(unique(x$genus))})
+no_genus <- do.call(rbind, no_genus)
+no_genus <- as.data.frame(no_genus)
+no_genus <- tibble::rownames_to_column(no_genus, "study_site")
+Euro_Invert_info_studysites <- merge(Euro_Invert_info_studysites, no_genus, by = "study_site")
+colnames(Euro_Invert_info_studysites)[colnames(Euro_Invert_info_studysites) == "V1"] <- "no_genus"
+
+# Plot number of genus per study site
+ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_genus))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Number of genus per study site")+
+  facet_wrap(~country, scales = "free_x")
 
 # Proportion of taxon level
 # extract level of taxon determination
@@ -434,22 +508,24 @@ Euro_Invert[which(is.na(Euro_Invert$taxon_level) & !is.na(Euro_Invert$genus)), "
 Euro_Invert[which(is.na(Euro_Invert$taxon_level)), "taxon_level"] <- "c"
 
 # Calculate proportion of species, genus, coarser identification per country
-proportion_taxon_level <- data.frame(country = countries, per_sp = NA, per_g = NA, per_c = NA)
+Euro_Invert_info_countries$p_spec <- NA
+Euro_Invert_info_countries$p_gen <- NA
+Euro_Invert_info_countries$p_cors <- NA
 for (i in 1:length(countries)) {
   tmp <- subset(Euro_Invert, Euro_Invert$country == countries[i])
-  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_sp"] <- (length(which(tmp$taxon_level == "s"))/ nrow(tmp))*100
-  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_g"] <- (length(which(tmp$taxon_level == "g"))/ nrow(tmp))*100
-  proportion_taxon_level[proportion_taxon_level$country == countries[i],"per_c"] <- (length(which(tmp$taxon_level == "c"))/ nrow(tmp))*100
+  Euro_Invert_info_countries[Euro_Invert_info_countries$country == countries[i],"p_spec"] <- (length(which(tmp$taxon_level == "s"))/ nrow(tmp))*100
+  Euro_Invert_info_countries[Euro_Invert_info_countries$country == countries[i],"p_gen"] <- (length(which(tmp$taxon_level == "g"))/ nrow(tmp))*100
+  Euro_Invert_info_countries[Euro_Invert_info_countries$country == countries[i],"p_cors"] <- (length(which(tmp$taxon_level == "c"))/ nrow(tmp))*100
 }
 
 # change data frame to long format
-completeness.long_taxon <- data.frame(country = rep(proportion_taxon_level$country,3), 
-                                proportion = c(proportion_taxon_level$per_sp, proportion_taxon_level$per_g, proportion_taxon_level$per_c),
-                                type = c(rep("per.species", nrow(proportion_taxon_level)), rep("per.genus", nrow(proportion_taxon_level)), 
-                                         rep("per.coarser", nrow(proportion_taxon_level))))
+proportion_completeness_taxon_countries_long <- data.frame(country = rep(Euro_Invert_info_countries$country,3), 
+                                proportion = c(Euro_Invert_info_countries$p_spec, Euro_Invert_info_countries$p_gen, Euro_Invert_info_countries$p_cors),
+                                type = c(rep("per.species", nrow(Euro_Invert_info_countries)), rep("per.genus", nrow(Euro_Invert_info_countries)), 
+                                         rep("per.coarser", nrow(Euro_Invert_info_countries))))
 
 # plot results as bar plot
-ggplot(data = completeness.long_taxon, aes(x = country, y=proportion, fill = type))+
+ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=proportion, fill = type))+
   geom_bar(position = "stack", stat = "identity")+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
@@ -457,3 +533,38 @@ ggplot(data = completeness.long_taxon, aes(x = country, y=proportion, fill = typ
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Proportion of taxon level per country")+
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Species", "Genus"))
+
+# Calculate proportion of species, genus, coarser identification per study site
+Euro_Invert_info_studysites$p_spec <- NA
+Euro_Invert_info_studysites$p_gen <- NA
+Euro_Invert_info_studysites$p_cors <- NA
+for (i in 1:length(study_sites)) {
+  tmp <- subset(Euro_Invert, Euro_Invert$study_site == study_sites[i])
+  Euro_Invert_info_studysites[Euro_Invert_info_studysites$study_site == study_sites[i],"p_spec"] <- (length(which(tmp$taxon_level == "s"))/ nrow(tmp))*100
+  Euro_Invert_info_studysites[Euro_Invert_info_studysites$study_site == study_sites[i],"p_gen"] <- (length(which(tmp$taxon_level == "g"))/ nrow(tmp))*100
+  Euro_Invert_info_studysites[Euro_Invert_info_studysites$study_site == study_sites[i],"p_cors"] <- (length(which(tmp$taxon_level == "c"))/ nrow(tmp))*100
+}
+
+# change data frame to long format
+proportion_completeness_taxon_studysites_long <- data.frame(study_site = rep(Euro_Invert_info_studysites$study_site,3), 
+                                      proportion = c(Euro_Invert_info_studysites$p_spec, Euro_Invert_info_studysites$p_gen, Euro_Invert_info_studysites$p_cors),
+                                      type = c(rep("per.species", nrow(Euro_Invert_info_studysites)), rep("per.genus", nrow(Euro_Invert_info_studysites)), 
+                                               rep("per.coarser", nrow(Euro_Invert_info_studysites))))
+
+# add column with country
+proportion_completeness_taxon_studysites_long$country <- NA
+for (k in 1:length(countries)) {
+  row_index <- grep(countries[k], proportion_completeness_taxon_studysites_long[,"study_site"])
+  proportion_completeness_taxon_studysites_long[row_index, "country"] <- countries[k]
+}
+
+# plot results as bar plot
+ggplot(data = proportion_completeness_taxon_studysites_long, aes(x = study_site, y=proportion, fill = type))+
+  geom_bar(position = "stack", stat = "identity")+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Proportion") +
+  theme(axis.text.x = element_text(hjust = 0.5))+
+  ggtitle("Proportion of taxon level per country")+
+  scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Species", "Genus"))+
+  facet_wrap(~country, scales = "free_x")
