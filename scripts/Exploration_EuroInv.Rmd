@@ -213,6 +213,7 @@ ggplot(Euro_Invert_info_countries, aes(x=country, y= no_genus))+
 
 ```
 
+Proportion of individuals identified to a specific taxonomic level. "Coarser" means that the individual was identified to sub-family-level or coarser.
 ```{r, echo =F}
 # Proportion of taxon level
 
@@ -356,6 +357,7 @@ ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_genus))+
 
 ```
 
+Proportion of individuals identified to a specific taxonomic level. "Coarser" means that the individual was identified to sub-family-level or coarser.
 ```{r,fig.width = 10, fig.height = 12, echo =F}
 # Proportion of taxon level
 # change data frame to long format
