@@ -107,6 +107,7 @@ ggplot(Euro_Invert_info_countries, aes(x=country, y= no_studysites))+
 ## Number of records
 
 ```{r, echo = FALSE}
+#Plot number of records (data points) per country
 ggplot(Euro_Invert_info_countries, aes(x=country, y= no_records))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
@@ -176,7 +177,7 @@ ggplot(data = completeness_timeseries_countries_long, aes(x = country, y = Year)
   ggtitle("Coverage of sampled years per country")
 
 
-# plot results as bar plot
+# plot proportion as bar plot
 ggplot(data = proportion_completeness_timeseries_countries_long, aes(x = country, y=proportion, fill = type))+
   geom_bar(position = "stack", stat = "identity")+
   theme_minimal() +
@@ -215,7 +216,7 @@ ggplot(Euro_Invert_info_countries, aes(x=country, y= no_genus))+
 ```{r, echo =F}
 # Proportion of taxon level
 
-# change data frame to long format
+# Proportion of identified taxon level in every country
 proportion_completeness_taxon_countries_long <- data.frame(country = rep(Euro_Invert_info_countries$country,3), 
                                 proportion = c(Euro_Invert_info_countries$p_spec, Euro_Invert_info_countries$p_gen, Euro_Invert_info_countries$p_cors),
                                 type = c(rep("per.species", nrow(Euro_Invert_info_countries)), rep("per.genus", nrow(Euro_Invert_info_countries)), 
@@ -237,6 +238,7 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
 ## Number of records
 
 ```{r,fig.width = 8, fig.height = 12, echo = FALSE}
+# Plot number of records per study site
 ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_records))+
   geom_bar(stat = "identity")+
   labs(x = "", y = "")+
@@ -294,7 +296,7 @@ for (k in 1:length(countries)) {
     completeness_timeseries_studysites_long[row_index, "country"] <- countries[k]
 }
 
-# change data frame to long format
+# Proportion of sampled/ non-sampled countries
 proportion_completeness_timeseries_studysites_long <- data.frame(study_site = rep(Euro_Invert_info_studysites$study_site,2), 
                                 proportion = c(Euro_Invert_info_studysites$p_years_miss, Euro_Invert_info_studysites$p_years_pres),
                                 type = c(rep("p.miss", nrow(Euro_Invert_info_studysites)), rep("p.pres", nrow(Euro_Invert_info_studysites))))
@@ -305,12 +307,6 @@ for (k in 1:length(countries)) {
   row_index <- grep(countries[k], proportion_completeness_timeseries_studysites_long[,"study_site"])
   proportion_completeness_timeseries_studysites_long[row_index, "country"] <- countries[k]
 }
-
-
-# Proportion of sampled vs non-sampled
-proportion_completeness_timeseries_countries_long <- data.frame(country = rep(Euro_Invert_info_countries$country,2), 
-                                proportion = c(Euro_Invert_info_countries$p_years_miss, Euro_Invert_info_countries$p_years_pres),
-                                type = c(rep("p_years_miss", nrow(Euro_Invert_info_countries)), rep("p_years_pres", nrow(Euro_Invert_info_countries))))
 
 # Plot results of completeness
 ggplot(data = completeness_timeseries_studysites_long, aes(x = study_sites, y = Year)) +
@@ -323,7 +319,7 @@ ggplot(data = completeness_timeseries_studysites_long, aes(x = study_sites, y = 
   ggtitle("Coverage of sampled years per study site")+
   facet_wrap(~country, scales = "free_x")
 
-# plot results as bar plot
+# plot proportion as bar plot
 ggplot(data = proportion_completeness_timeseries_studysites_long, aes(x = study_site, y=proportion, fill = type))+
   geom_bar(position = "stack", stat = "identity")+
   theme_minimal() +
@@ -336,7 +332,6 @@ ggplot(data = proportion_completeness_timeseries_studysites_long, aes(x = study_
 ```
 
 ## Taxa coverage
-
 
 ```{r,fig.width = 8, fig.height = 12, echo =F}
 # Plot number of species per study site
