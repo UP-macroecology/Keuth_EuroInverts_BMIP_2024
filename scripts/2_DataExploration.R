@@ -313,7 +313,7 @@ ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_records))+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
   theme(axis.text.x = element_text(hjust = 0.5))+
-  ggtitle("Number of records per country")+
+  ggtitle("Number of records per study site")+
   facet_wrap(~country, scales = "free_x")
 
 # Taxa ----------
@@ -568,3 +568,7 @@ ggplot(data = proportion_completeness_taxon_studysites_long, aes(x = study_site,
   ggtitle("Proportion of taxon level per country")+
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Species", "Genus"))+
   facet_wrap(~country, scales = "free_x")
+
+#save information data sets
+write.csv(Euro_Invert_info_countries, "data/Euro_FreshInv_information_country.csv", row.names = F)
+write.csv(Euro_Invert_info_studysites, "data/Euro_FreshInv_information_studysite.csv", row.names = F)
