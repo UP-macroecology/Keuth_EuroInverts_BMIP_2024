@@ -25,7 +25,7 @@ library(tibble)
 # Load in data
 Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
 Euro_Invert_info_countries <- read.csv("data/Euro_FreshInv_information_country.csv")
-Euro_Invert_info_studysites <- read.csv("data/Euro_FreshInv_information_studysite.csv")
+#Euro_Invert_info_studysites <- read.csv("data/Euro_FreshInv_information_studysite.csv")
 
 # study countries
 countries <- unique(Euro_Invert$country)
