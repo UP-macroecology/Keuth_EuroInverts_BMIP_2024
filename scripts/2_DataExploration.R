@@ -394,28 +394,16 @@ Euro_Invert$coarser <- str_remove(Euro_Invert$coarser, "gen. sp.")
 Euro_Invert[which(Euro_Invert$coarser == "Anax/hemianax sp."),"coarser"] <- "Aeshnidae"
 Euro_Invert[which(Euro_Invert$coarser == "Annitella/chaetopteryx sp."),"coarser"] <- "Limnephilidae"
 Euro_Invert[which(Euro_Invert$coarser == "Atherix/ibisia sp."),"coarser"] <- "Athericidae"
-Euro_Invert[which(Euro_Invert$coarser == "Ceratopogoninae "),"coarser"] <- "Ceratopogonidae"
 Euro_Invert[which(Euro_Invert$coarser == "Ceratopogoninae/palpomyiinae "),"coarser"] <- "Ceratopogonidae"
 Euro_Invert[which(Euro_Invert$coarser == "Chaetopterygini/stenophylacini "),"coarser"] <- "Limnephilidae"
 Euro_Invert[which(Euro_Invert$coarser == "Chelifera/hemerodromia sp."),"coarser"] <- "Empididae"
-Euro_Invert[which(Euro_Invert$coarser == "Corixinae "),"coarser"] <- "Corixidae"
 Euro_Invert[which(Euro_Invert$coarser == "Crangonyx/niphargus sp."),"coarser"] <- "Amphipoda"
-Euro_Invert[which(Euro_Invert$coarser == "Gammaroidea "),"coarser"] <- "Gammaridea"
-Euro_Invert[which(Euro_Invert$coarser == "Glossosomatinae "),"coarser"] <- "Glossosomatidae"
 Euro_Invert[which(Euro_Invert$coarser == "Habroleptoides/paraleptophlebia sp."),"coarser"] <- "Leptobhlebiidae"
-Euro_Invert[which(Euro_Invert$coarser == "Hydraeninae "),"coarser"] <- "Hydraenidae"
 Euro_Invert[which(Euro_Invert$coarser == "Tubificidae "),"coarser"] <- "Naididae"
 Euro_Invert[which(Euro_Invert$coarser == "Naididae/tubificidae "),"coarser"] <- "Naididae"
-Euro_Invert[which(Euro_Invert$coarser == "Tipulinae "),"coarser"] <- "Tipulidae"
-Euro_Invert[which(Euro_Invert$coarser == "Sciomyzinae "),"coarser"] <- "Sciomyzidae"
-Euro_Invert[which(Euro_Invert$coarser == "Psychomyiinae "),"coarser"] <- "Psychomyiidae"
-Euro_Invert[which(Euro_Invert$coarser == "Philopotaminae "),"coarser"] <- "Philopotamidae"
 Euro_Invert[which(Euro_Invert$coarser == "Perlidae/perlodidae "),"coarser"] <- "Plecoptera"
 Euro_Invert[which(Euro_Invert$coarser == "Micropsectra/tanytarsus sp."),"coarser"] <- "Chironomidae"
-Euro_Invert[which(Euro_Invert$coarser == "Limnephilinae"),"coarser"] <- "Limnephilidae"
 Euro_Invert[which(Euro_Invert$coarser == "Leuctridae/capniidae "),"coarser"] <- "Plecoptera"
-Euro_Invert[which(Euro_Invert$coarser == "Lepidostomatinae "),"coarser"] <- "Lepidostomatidae"
-Euro_Invert[which(Euro_Invert$coarser == "Hydrophilinae "),"coarser"] <- "Hydrophilidae"
 Euro_Invert$coarser <- str_remove(Euro_Invert$coarser, " ")
 
 #try <- as.data.frame(sort(unique(Euro_Invert$coarser)))
@@ -572,3 +560,4 @@ ggplot(data = proportion_completeness_taxon_studysites_long, aes(x = study_site,
 #save information data sets
 write.csv(Euro_Invert_info_countries, "data/Euro_FreshInv_information_country.csv", row.names = F)
 write.csv(Euro_Invert_info_studysites, "data/Euro_FreshInv_information_studysite.csv", row.names = F)
+write.csv(Euro_Invert, "data/Euro_FreshInv_all_sites_split_taxa.csv", row.names = F)
