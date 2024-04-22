@@ -84,7 +84,7 @@ plot(newmap,col=col,
 # Study Sites ------
 
 # number of study sites in total and per country
-length(unique(Euro_Invert$study_site)) #43
+length(unique(Euro_Invert$study_site)) #1816
 
 # Create list with the different countries as elements
 Euro_Invert_list <- split(Euro_Invert, Euro_Invert$country)
@@ -112,7 +112,7 @@ max(Euro_Invert$year) - min(Euro_Invert$year) #number of years
 # same for every country
 lapply(Euro_Invert_list, function(x){r_years <- range(x$year); l_years <- max(x$year) - min(x$year); return(c(r_years, l_years))})
 
-# number of years per study site
+# number of years per country
 lapply(Euro_Invert_list, function(x){(length(unique(x$year)))})
 
 # Completeness of time series ---------

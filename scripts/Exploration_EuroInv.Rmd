@@ -91,7 +91,7 @@ plot(newmap,col=col,
 )
 ```
 
-In total 43 different study sites were sampled. The study sites are unevenly distributed between the countries:
+In total 1816 different study sites were sampled. The study sites are unevenly distributed between the countries:
  
 ```{r, echo=FALSE}
 # Plot number of study sites per country
@@ -234,11 +234,11 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   scale_fill_manual("Proportion of", values = c("#7FBADC", "#FFBF47", "#18848C"), labels = c("Coarser", "Species", "Genus"))
 ```
 
-
+```{r,fig.width = 8, fig.height = 12, echo = FALSE, include = FALSE}
 # Data exploration on the study site level
 ## Number of records
 
-```{r,fig.width = 8, fig.height = 12, echo = FALSE}
+
 # Plot number of records per study site
 ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_records))+
   geom_bar(stat = "identity")+
@@ -251,9 +251,11 @@ ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_records))+
 
 ```
 
+
+
+```{r,fig.width = 10, fig.height = 12, echo=FALSE, include= FALSE}
 ## Time coverage
 
-```{r,fig.width = 10, fig.height = 12, echo=FALSE}
 # Create list with the different study sites as elements
 Euro_Invert_list_studysite <- split(Euro_Invert, Euro_Invert$study_site)
 
@@ -332,9 +334,10 @@ ggplot(data = proportion_completeness_timeseries_studysites_long, aes(x = study_
   facet_wrap(~country, scales = "free_x")
 ```
 
+
+```{r,fig.width = 8, fig.height = 12, echo =F, include= FALSE}
 ## Taxa coverage
 
-```{r,fig.width = 8, fig.height = 12, echo =F}
 # Plot number of species per study site
 ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_species))+
   geom_bar(stat = "identity")+
@@ -357,8 +360,9 @@ ggplot(Euro_Invert_info_studysites, aes(x=study_sites, y= no_genus))+
 
 ```
 
-Proportion of individuals identified to a specific taxonomic level. "Coarser" means that the individual was identified to sub-family-level or coarser.
-```{r,fig.width = 10, fig.height = 12, echo =F}
+
+```{r,fig.width = 10, fig.height = 12, echo =F, include = FALSE}
+#Proportion of individuals identified to a specific taxonomic level. "Coarser" means that the individual was identified to sub-family-level or coarser.
 # Proportion of taxon level
 # change data frame to long format
 proportion_completeness_taxon_studysites_long <- data.frame(study_site = rep(Euro_Invert_info_studysites$study_site,3), 
