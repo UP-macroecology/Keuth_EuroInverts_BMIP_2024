@@ -189,20 +189,20 @@ species <- as.data.frame(sort(unique(Euro_Invert$species)))
 names(species) <- c("identified")
 
 # loop through every single species and extract tsn code, which is then checked for the accepted name if the species was found in tsn to see if any synonyms were used
-species$tsn_check <- NA
-for (i in 1:nrow(species)) {
-  tsn <- get_tsn(species[i,"identified"], accepted = F)
-  if(is.na(tsn)){
-    species$tsn_check[i] <- NA
-  } else {
-    itis <- lapply(tsn, itis_acceptname)
-    if(is.na(itis[[1]]$acceptedname)){
-      species$tsn_check[i] <- species$identified[i]
-    } else {
-      species$tsn_check[i] <- itis[[1]]$acceptedname
-    }
-  }
-}
+# species$tsn_check <- NA
+# for (i in 1:nrow(species)) {
+#   tsn <- get_tsn(species[i,"identified"], accepted = F)
+#   if(is.na(tsn)){
+#     species$tsn_check[i] <- NA
+#   } else {
+#     itis <- lapply(tsn, itis_acceptname)
+#     if(is.na(itis[[1]]$acceptedname)){
+#       species$tsn_check[i] <- species$identified[i]
+#     } else {
+#       species$tsn_check[i] <- itis[[1]]$acceptedname
+#     }
+#   }
+# }
 # species with NA in tsn_check need to be checked by hand for their correct species name
 
 #save the data set
@@ -298,4 +298,4 @@ for (i in 1:nrow(species)){
 }
 
 # save large data frame
-write.csv(raw_freshinv, "data/Euro_FreshInv_preprocessed.csv", row.names = F)
+write.csv(Euro_Invert, "data/Euro_FreshInv_preprocessed.csv", row.names = F)
