@@ -486,7 +486,7 @@ boxplot(Euro_Invert_info_species$no_detections)
 summary(Euro_Invert_info_species$no_detections)
 
 # remove species with just one detection
-Euro_Invert_info_species <- subset(Euro_Invert_info_species, no_detections > 15)
+#Euro_Invert_info_species <- subset(Euro_Invert_info_species, no_detections > 15)
 
 # number of countries per species (spatial coverage of species)
 Euro_Invert_list_species <- split(Euro_Invert, Euro_Invert$species)
@@ -581,6 +581,20 @@ ggplot(data = proportion_completeness_timeseries_species_long, aes(x = species, 
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Proportion of missing/ sampled years per species")+
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF"), labels = c("Missing", "Sampled"))
+
+# add number of sampled years per species
+completeness_timeseries_species_long_list <- split(completeness_timeseries_species_long, completeness_timeseries_species_long$species)
+no_sampledyears_species <- lapply(completeness_timeseries_species_long_list, function(x){length(which(!is.na(x$sampled)))})
+no_sampledyears_species <- do.call(rbind, no_sampledyears_species)
+no_sampledyears_species <- as.data.frame(no_sampledyears_species)
+no_sampledyears_species <- tibble::rownames_to_column(no_sampledyears_species, "species")
+Euro_Invert_info_species <- merge(Euro_Invert_info_species, no_sampledyears_species, by = "species")
+colnames(Euro_Invert_info_species)[colnames(Euro_Invert_info_species) == "V1"] <- "no_sampledyears"
+
+# create presentable and meaningful plots
+boxplot(Euro_Invert_info_species$no_detections, ylab = "Number of detections per species")
+boxplot(Euro_Invert_info_species$no_countries, ylab = "Number of countries per species")
+boxplot(Euro_Invert_info_species$no_sampledyears, ylab = "Number of sampled years per species")
 
 #save information data sets
 write.csv(Euro_Invert_info_species, "data/Euro_FreshInv_information_species.csv", row.names = F)
