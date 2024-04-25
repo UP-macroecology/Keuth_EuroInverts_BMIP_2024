@@ -25,7 +25,8 @@ library(tibble)
 # Load in data
 Euro_Invert <- read.csv("data/Euro_FreshInv_all_sites.csv")
 Euro_Invert_info_countries <- read.csv("data/Euro_FreshInv_information_country.csv")
-#Euro_Invert_info_studysites <- read.csv("data/Euro_FreshInv_information_studysite.csv")
+Euro_Invert_info_species <- read.csv("data/Euro_FreshInv_information_species.csv")
+Euro_Invert_info_studysites <- read.csv("data/Euro_FreshInv_information_studysite.csv")
 
 # study countries
 countries <- unique(Euro_Invert$country)
@@ -190,7 +191,7 @@ ggplot(data = proportion_completeness_timeseries_countries_long, aes(x = country
 
 ## Taxa coverage
 
-In total 1402 species were found and 676 genus.
+In total 1391 species were found and 675 genus.
 
 ```{r, echo =F}
 # Plot number of species per country
@@ -232,6 +233,26 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Proportion of identified taxon level per country")+
   scale_fill_manual("Proportion of", values = c("#7FBADC", "#FFBF47", "#18848C"), labels = c("Coarser", "Species", "Genus"))
+```
+
+# Data exploration on the species level
+The goal is to find a set of species which show a good spatial and temporal cover as well as several data points.
+
+### Number of detections over all species
+```{r, echo =F,fig.width = 8, fig.height = 6}
+boxplot(Euro_Invert_info_species$no_detections, ylab = "Number of detections per species")
+```
+
+### Number of countries each species was found in (over all species)
+Total number of countries is 22.
+```{r, echo =F,fig.width = 8, fig.height = 6}
+boxplot(Euro_Invert_info_species$no_countries, ylab = "Number of countries per species")
+```
+
+### Number of sampled years over all species
+Total number of years is 52.
+```{r, echo =F,fig.width = 8, fig.height = 6}
+boxplot(Euro_Invert_info_species$no_sampledyears, ylab = "Number of sampled years per species")
 ```
 
 ```{r,fig.width = 8, fig.height = 12, echo = FALSE, include = FALSE}
