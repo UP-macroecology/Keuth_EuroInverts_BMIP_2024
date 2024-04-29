@@ -239,18 +239,19 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
 The goal is to find a set of species which show a good spatial and temporal cover as well as several data points.
 
 ### Number of detections over all species
+Each data point for this plot represents one species and its total number of detections over all countries and years.
 ```{r, echo =F,fig.width = 8, fig.height = 6}
 boxplot(Euro_Invert_info_species$no_detections, ylab = "Number of detections per species")
 ```
 
 ### Number of countries each species was found in (over all species)
-Total number of countries is 22.
+Each data point again represents one species and the number of countries it was detected in. The total number of countries is 22.
 ```{r, echo =F,fig.width = 8, fig.height = 6}
 boxplot(Euro_Invert_info_species$no_countries, ylab = "Number of countries per species")
 ```
 
 ### Number of sampled years over all species
-Total number of years is 52.
+Each data point represents one species and its number of sampling years. However, this does not give information about completeness of the timeseries of each species. Total number of years is 52.
 ```{r, echo =F,fig.width = 8, fig.height = 6}
 boxplot(Euro_Invert_info_species$no_sampledyears, ylab = "Number of sampled years per species")
 ```
