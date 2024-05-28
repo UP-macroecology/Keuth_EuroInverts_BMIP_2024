@@ -232,7 +232,7 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   labs(x = "", y = "Proportion") +
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Proportion of identified taxon level per country")+
-  scale_fill_manual("Proportion of", values = c("#7FBADC", "#FFBF47", "#18848C"), labels = c("Coarser", "Species", "Genus"))
+  scale_fill_manual("Proportion of", values = c("#7FBADC", "#FFBF47", "#18848C"), labels = c("Coarser", "Genus", "Species"))
 ```
 
 # Data exploration on the species level
