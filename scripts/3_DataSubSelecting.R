@@ -14,6 +14,7 @@ Euro_Invert <- read.csv("data/Euro_FreshInv_preprocessed.csv")
 
 # Extract only the data at species-level identification
 Euro_Invert <- Euro_Invert[which(!is.na(Euro_Invert$species)),]
+Euro_Invert <- Euro_Invert[which(Euro_Invert$year >= 1980),]
 countries <- unique(Euro_Invert$country)
 
 #Obtain information regarding temporal cover & species number per country
@@ -30,7 +31,7 @@ colnames(Euro_Invert_info) <- c("country", "no_species")
 sampling_years_countries <- lapply(Euro_Invert_list, function(x){unique(x$year)})
 
 # data frame for completeness of time series for every year
-completeness_timeseries <- data.frame(Year = c(1980:2020))
+completeness_timeseries <- data.frame(Year = c(1990:2020))
 
 # add a column for every study country
 for (i in 1:length(countries)){
@@ -40,7 +41,7 @@ for (i in 1:length(countries)){
 
 # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
 for (k in 1:length(countries)){
-  for (i in 1980:2020) {
+  for (i in 1990:2020) {
     if(i %in% sampling_years_countries[[countries[k]]] == T){
       completeness_timeseries[completeness_timeseries$Year == i, countries[k]] <- "Yes"
     }
@@ -72,6 +73,13 @@ for (i in 1:length(countries)) {
 proportion_completeness_timeseries_long <- data.frame(country = rep(Euro_Invert_info$country,2), 
                                                                 proportion = c(Euro_Invert_info$p_years_miss, Euro_Invert_info$p_years_pres),
                                                                 type = c(rep("p_years_miss", nrow(Euro_Invert_info)), rep("p_years_pres", nrow(Euro_Invert_info))))
+#calculate coverage value per country
+coverage <- lapply(Euro_Invert_list, function(x){(round((nrow(x))/(with(x, length(unique(species)) * length(unique(site_id)) * 30)),2))*100})
+coverage <- do.call(rbind, coverage)
+coverage <- as.data.frame(coverage)
+coverage <- tibble::rownames_to_column(coverage, "country")
+colnames(coverage) <- c("country", "coverage")
+Euro_Invert_info <- merge(coverage, Euro_Invert_info, by = "country")
 
 # Plots
 ggplot(Euro_Invert_info, aes(x=country, y= no_species))+
@@ -137,8 +145,15 @@ plot(newmap,col=col,
      asp = 1,lwd=wv
 )
 
-text(Euro_Invert_info$LON, Euro_Invert_info$LAT, paste0("sp:", Euro_Invert_info$no_species), col = "red", cex = 0.8)
-text(Euro_Invert_info$LON, Euro_Invert_info$LAT, paste0("time:", Euro_Invert_info$p_years_pres, "%"), col = "red", pos = 3, cex = 0.8)
+text(Euro_Invert_info$LON, Euro_Invert_info$LAT, paste0("sp:", Euro_Invert_info$no_species), col = "red", cex = 0.7)
+text(Euro_Invert_info$LON, Euro_Invert_info$LAT, paste0("time:", Euro_Invert_info$p_years_pres, "%"), col = "red", pos = 3, cex = 0.7)
+text(Euro_Invert_info$LON, Euro_Invert_info$LAT, paste0("cov:", Euro_Invert_info$coverage, "%"), col = "red", pos = 1, cex = 0.7)
+
+# Work on preselection of the countries
+
+
+
+
 
 # Select those countries, which have a amount of identification at species level which is above 15 % and a sampling rate of above 20%
 countries <- Euro_Invert_info_countries[which(Euro_Invert_info_countries$p_spec >= 15 & Euro_Invert_info_countries$p_years_pres >= 20), "country"]
