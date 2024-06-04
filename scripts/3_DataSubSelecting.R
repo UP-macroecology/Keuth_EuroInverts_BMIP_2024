@@ -249,3 +249,10 @@ plot(newmap,col=col,
 text(x = -5, y = 69, paste0("1980: ", round(unique(df_list[[i]]$X1980), 4), "\n1985: ", round(unique(df_list[[i]]$X1985), 4) , "\n1990: ", round(unique(df_list[[i]]$X1990), 4)), cex = 1)
 }
 dev.off()
+
+library(dplyr)
+test2 <- Euro_Invert %>% group_by(species) %>% count()
+test <- Euro_Invert %>% group_by(species) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country)) %>% 
+  full_join(test2, by = join_by(species)) %>% mutate(time_cov = no_years/31, spatial_cov = no_countries/21, coverage = n/(31 * 21))
+
+full_join(test, test2)
