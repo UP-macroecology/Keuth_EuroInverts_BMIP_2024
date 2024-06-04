@@ -217,6 +217,11 @@ server <- function(input, output){
 }
 
 # Idea create a plot/ table that shows the 10 best performing species (time cover, spatial cover (number of countries present of all))
+# create a list and use lapply to obtain sampled years divided by all years and present in countries divided by all countries
+# look for other option? group by?
+# could I use a different metric like nrow(species)/time*countries? or this one as an additional one? and select the species based on this one
+
+# Make country info code more efficient using dplyr and group_by
 
 # Run App -------------
 shinyApp(ui = ui, server = server)
