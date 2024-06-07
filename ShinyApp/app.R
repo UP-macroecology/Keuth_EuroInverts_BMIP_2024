@@ -23,6 +23,7 @@ Euro_Invert <- read.csv("data/Euro_FreshInv_preprocessed.csv")
 
 # Extract only the data at species-level identification
 Euro_Invert <- Euro_Invert[which(!is.na(Euro_Invert$species)),]
+countries <- unique(Euro_Invert$country)
 
 # Prepare data for map
 world_map <- maps::map("world", plot=FALSE)
@@ -54,7 +55,9 @@ ui <- fluidPage(
       # Metrics for the current selected data set
       tableOutput("Metrics"),
       # Map of the selected countries
-      plotOutput("Map", height = "800px", width = "1100px")
+      plotOutput("Map", height = "800px", width = "1100px"),
+      # Metrics for the current selected data set for the first 10 species
+      tableOutput("SpeciesMetrics"),
     )
   )
 )
@@ -65,7 +68,7 @@ server <- function(input, output){
   Euro_Invert_sub <- reactive({subset(Euro_Invert, Euro_Invert$country %in% input$SelectCountries & Euro_Invert$year >= input$StartYear)})
 
   # Splitting dataframe into a list based on country selection
-  Euro_Invert_list <- reactive({(split(Euro_Invert_sub(), Euro_Invert_sub()$country))})
+  Euro_Invert_list <- reactive({(split(Euro_Invert, Euro_Invert$country))})
 
   # Obtain sampled years per country
   sampling_years_countries <- reactive({lapply(Euro_Invert_list(), function(x){unique(x$year)})})
@@ -74,13 +77,13 @@ server <- function(input, output){
   completeness_timeseries <- reactive({
     dat <- data.frame(Year = c(input$StartYear:2020))
     # add a column for every country
-    for (k in 1:length(input$SelectCountries)){
+    for (k in 1:length(countries)){
       dat$tmp <- NA
-      names(dat)[names(dat) == "tmp"] <- input$SelectCountries[k]
+      names(dat)[names(dat) == "tmp"] <- countries[k]
       # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
       for (i in input$StartYear:2020) {
-        if(i %in% sampling_years_countries()[[input$SelectCountries[k]]] == T){
-          dat[dat$Year == i, input$SelectCountries[k]] <- "Yes"
+        if(i %in% sampling_years_countries()[[countries[k]]] == T){
+          dat[dat$Year == i, countries[k]] <- "Yes"
         }
       }
     }
@@ -129,20 +132,16 @@ server <- function(input, output){
   
   # create data set which contains specific information for every country
   Euro_Invert_info <- reactive({
-    dat <- Euro_Invert_list()
     # number of species identified for every country
-    dat <- lapply(dat, function(x){length(unique(x$species))})
-    dat <- as.data.frame(do.call(rbind, dat))
-    dat <- tibble::rownames_to_column(dat, "country")
-    colnames(dat) <- c("country", "no_species")
+    dat <- Euro_Invert %>% group_by(country) %>% summarise(no_species = n_distinct(species))
     # Calculate proportion of present years and proportion of missing years
     dat$p_years_miss <- NA
     dat$p_years_pres <- NA
-    for (i in 1:length(input$SelectCountries)) {
-      tmp <- subset(completeness_timeseries_long(), completeness_timeseries_long()$country == input$SelectCountries[i])
+    for (i in 1:length(countries)) {
+      tmp <- subset(completeness_timeseries_long(), completeness_timeseries_long()$country == countries[i])
       p_miss <- (mean(is.na(tmp$sampled)) * 100)
-      dat[dat$country == input$SelectCountries[i], "p_years_miss"] <- round(p_miss, 1)
-      dat[dat$country == input$SelectCountries[i], "p_years_pres"] <- round(100 - p_miss,1)
+      dat[dat$country == countries[i], "p_years_miss"] <- round(p_miss, 1)
+      dat[dat$country == countries[i], "p_years_pres"] <- round(100 - p_miss,1)
     }
     #calculate coverage value per country (Coverage represents the completeness of the data set regarding three dimensions: space, time, taxon, 100% = perfect sampling)
     coverage <- lapply(Euro_Invert_list(), function(x){
@@ -167,8 +166,18 @@ server <- function(input, output){
     tmp
     })
   
-  # Table to display the metrics above the map
+  # calculate metrics (proportion of sampled years, coverage of countries) per species level
+  species_counts <- reactive({Euro_Invert_sub() %>% group_by(species) %>% count()})
+  species_metrics <- reactive({Euro_Invert_sub() %>% group_by(species) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
+      full_join(species_counts(), by = join_by(species)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
+                                                                  spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
+                                                                  coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
+      arrange(desc(coverage)) })
+  
+  
+  # Table to display the metrics above the map and below the map
   output$Metrics <- renderTable(metrics())
+  output$SpeciesMetrics <- renderTable(head(species_metrics(),10))
   
   # Plot for sampled years for the different countries
   output$TimeCoverage <- renderPlot({
@@ -215,13 +224,6 @@ server <- function(input, output){
   )
  })
 }
-
-# Idea create a plot/ table that shows the 10 best performing species (time cover, spatial cover (number of countries present of all))
-# create a list and use lapply to obtain sampled years divided by all years and present in countries divided by all countries
-# look for other option? group by?
-# could I use a different metric like nrow(species)/time*countries? or this one as an additional one? and select the species based on this one
-
-# Make country info code more efficient using dplyr and group_by
 
 # Run App -------------
 shinyApp(ui = ui, server = server)
