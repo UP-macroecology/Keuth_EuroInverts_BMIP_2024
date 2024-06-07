@@ -252,7 +252,20 @@ dev.off()
 
 library(dplyr)
 test2 <- Euro_Invert %>% group_by(species) %>% count()
-test <- Euro_Invert %>% group_by(species) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country)) %>% 
-  full_join(test2, by = join_by(species)) %>% mutate(time_cov = no_years/31, spatial_cov = no_countries/21, coverage = n/(31 * 21))
+test <- Euro_Invert %>% group_by(species) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>% 
+  full_join(test2, by = join_by(species)) %>% mutate(time_cov = no_years/31, spatial_cov = no_countries/21, coverage = n/(31 * no_studysites)) %>% arrange(desc(coverage))
 
 full_join(test, test2)
+
+sampling_years_countries <- lapply(Euro_Invert_list, function(x){unique(x$year)})
+Euro_invert_info <- Euro_Invert %>% group_by(country) %>% summarise(no_species = n_distinct(species))
+
+
+dat <- Euro_Invert_list()
+# number of species identified for every country
+dat <- lapply(dat, function(x){length(unique(x$species))})
+dat <- as.data.frame(do.call(rbind, dat))
+dat <- tibble::rownames_to_column(dat, "country")
+colnames(dat) <- c("country", "no_species")
+
+test <- subset(Euro_Invert, Euro_Invert$species == "Spongilla lacustris")
