@@ -172,12 +172,18 @@ server <- function(input, output){
       full_join(species_counts(), by = join_by(species)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
                                                                   coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
-      arrange(desc(coverage)) })
+      arrange(desc(coverage))})
+  # rename the columns
+  species_metrics2 <- reactive({
+    tmp <- species_metrics()
+    colnames(tmp) <- c("species", "No. Years", "No. Countries", "No. Studysites", "No. Detections", "Time coverage [%]", "Spatial coverage [%]", "Coverage [%]")
+    tmp
+  })
   
   
   # Table to display the metrics above the map and below the map
   output$Metrics <- renderTable(metrics())
-  output$SpeciesMetrics <- renderTable(head(species_metrics(),10))
+  output$SpeciesMetrics <- renderTable(head(species_metrics2(),10))
   
   # Plot for sampled years for the different countries
   output$TimeCoverage <- renderPlot({
@@ -188,7 +194,7 @@ server <- function(input, output){
     labs(x = "", y = "Year") +
     theme(axis.text.x = element_text(hjust = 0.5))+
     scale_fill_manual("Sampled?", values = "#FF6666", labels = c("Yes", "No"))+
-    ggtitle("Coverage of sampled years per country")
+    ggtitle("Sampled years per country")
   })
   
   # Plot for the species number per country
@@ -210,7 +216,7 @@ server <- function(input, output){
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
       theme(axis.text.x = element_text(hjust = 0.5))+
-      ggtitle("Coverage per country")
+      ggtitle("Coverage per country [%]")
   })
   
   # Map with the selected countries
