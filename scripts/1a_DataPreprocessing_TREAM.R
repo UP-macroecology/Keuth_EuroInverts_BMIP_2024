@@ -184,6 +184,7 @@ for (i in 1:nrow(species)){
 # correct wrong coarser levels due to changes in the species names
 TREAM[which(TREAM$taxon == "Peringia ulvae"), "Group"] <- "Gastropoda"
 TREAM[which(TREAM$taxon == "Pettancylus clessinianus"), "Family"] <- "Planorbidae"
+TREAM[which(TREAM$taxon == "Odeles marginata"), "Family"] <- "Scirtidae"
 
 # correct genus and species in the TREAM data set
 # split the corrected species names
