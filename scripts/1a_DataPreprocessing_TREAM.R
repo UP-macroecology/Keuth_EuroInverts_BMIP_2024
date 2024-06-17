@@ -1,4 +1,6 @@
 # Preprocessing the TREAM data set
+# This is the better prepared dataset about the macroinvertebrate freshwater data from Europe
+# Goal: Preprocessing of the taxon column
 
 # Load packages
 library(taxize)
@@ -9,17 +11,17 @@ library(tidyverse)
 library(tibble)
 
 # load in data
-TREAM <- read.csv("data/TREAM/data/TREAM_allTaxa.csv")
+TREAM <- read.csv("data/TREAM/TREAM_allTaxa.csv")
 
-# clean the taxon columns
-
-# Taxa
+# Create full scientific species name from two columns
 TREAM$taxon <- paste(TREAM$Genus.group, TREAM$species)
-row_index <- c(grep("/",TREAM[,"taxon"]), grep("sp.",TREAM[,"taxon"]), grep("Gen. sp.",TREAM[,"taxon"]))
-TREAM[row_index, "taxon"] <- NA
+
+# remove species names that are just identified to genus or family level
+TREAM[grep("/",TREAM[,"taxon"]), "taxon"] <- NA
+TREAM$taxon[TREAM$species %in% c("sp.", "Gen. sp.")] <- NA
 TREAM[which(TREAM$taxon == " "),] <- NA
 
-#remove appendix
+#remove species appendices
 TREAM$taxon <- str_remove(TREAM$taxon, " Lv.")
 TREAM$taxon <- str_remove(TREAM$taxon, " Ad.")
 TREAM$taxon <- str_remove(TREAM$taxon, " ssp.")
@@ -29,7 +31,7 @@ TREAM$taxon <- str_remove(TREAM$taxon, " -agg.")
 TREAM$taxon <- str_remove(TREAM$taxon, " -Gr.")
 TREAM$taxon <- str_remove(TREAM$taxon, " -Agg.")
 
-#remove subspecies
+#remove subspecies identification
 TREAM <- TREAM %>%
   as_tibble() %>%
   mutate(
@@ -37,12 +39,17 @@ TREAM <- TREAM %>%
       str_split(taxon, pattern = "\\s+"),
       ~ str_flatten(.x[1:2], " ")))
 
-# adjust certain minor mistakes
+TREAM <- as.data.frame(TREAM)
+
+# adjust certain minor mistakes in species names
 TREAM[which(TREAM$taxon == "Thienemannimyia Gr."), "taxon"] <- NA
 TREAM[which(TREAM$taxon == "Corbicula \"fluminalis\""),"taxon"] <- "Corbicula fluminalis"
 TREAM[which(TREAM$taxon == "Orthocladiini COP"),"taxon"] <- NA
 TREAM[which(TREAM$taxon == "Vejdovskiella comata"), "taxon"] <- "Vejdovskyella comata"
 
+# check for correct species names
+
+# extract species names
 species <- as.data.frame(sort(unique(TREAM$taxon)))
 names(species) <- c("identified")
 
@@ -67,11 +74,11 @@ names(species) <- c("identified")
 #save(species, file="data/species_TREAM_tsn_check.Rdata")
 load("data/species_TREAM_tsn_check.Rdata")
 
-# check corrected species names for mistakes
+# check corrected species names of the function for mistakes
 row_index <- which(species$identified != species$tsn_check)
 tmp <- species[row_index,]
 
-# correct some mistakes that were made by assorting new names to the species
+# correct some mistakes that were made by the function for assorting new names to the species
 species[which(species$identified == "Agnetina elegantula"), "tsn_check"] <- "Agnetina elegantula"
 species[which(species$identified == "Cloeon inscriptum"), "tsn_check"] <- "Cloeon inscriptum"
 species[which(species$identified == "Dendrocoelum lacteum"), "tsn_check"] <- "Dendrocoelum lacteum"
@@ -80,7 +87,7 @@ species[which(species$identified == "Menetus dilatatus"), "tsn_check"] <- "Menet
 species[which(species$identified == "Tvetenia discoloripes"), "tsn_check"] <- "Tvetenia discoloripes"
 species[which(species$identified == "Ula sylvatica"), "tsn_check"] <- "Ula sylvatica"
 
-# check species that could not be found by hand
+# check species by hand that could not be found by the function
 row_index <- which(is.na(species$tsn_check))
 tmp <- species[row_index,]
 
@@ -148,26 +155,28 @@ species[which(species$identified == "Synendotendipes lepidus"), "tsn_check"] <- 
 
 # extract corrected species names
 row_index <- which(species$identified != species$tsn_check)
-tmp <- species[row_index,]
 species_corrected <- species[row_index, "identified"]
 
-# all other species names are correct, thus the NAs can be replaced by the original species name
+# replace all NAs with the identified species names, as all of them are correct
 for (i in 1:nrow(species)){
   if(is.na(species$tsn_check[i])){
     species$tsn_check[i] <- species$identified[i]
   }
 }
 
-# extract rows with a changed species name to check if any of the coarser levels have changed
-tmp <- c()
+# extract data from the species with the changed name to later check the coarser levels
+df_species_corrected <- c()
 for(i in 1:length(species_corrected)){
-  tmp <- rbind(tmp, TREAM[which(TREAM$taxon == species_corrected[i]),c(7:10, 12)])
+  df_species_corrected <- rbind(df_species_corrected, TREAM[which(TREAM$taxon == species_corrected[i]),c(7:10, 12)])
 }
 
-tmp <- distinct(tmp)
-tmp <- merge(tmp, species, by.x = "taxon", by.y = "identified")
+# keep only the distinct species names
+df_species_corrected <- distinct(df_species_corrected)
 
-# add corrected names to the data set
+# merge the extracted old species names with the new ones
+df_species_corrected <- merge(df_species_corrected, species, by.x = "taxon", by.y = "identified")
+
+# add the corrected names to the data set
 for (i in 1:nrow(species)){
  TREAM[which(TREAM$taxon == species$identified[i]),"taxon"] <- species$tsn_check[i]
 }
@@ -176,22 +185,41 @@ for (i in 1:nrow(species)){
 TREAM[which(TREAM$taxon == "Peringia ulvae"), "Group"] <- "Gastropoda"
 TREAM[which(TREAM$taxon == "Pettancylus clessinianus"), "Family"] <- "Planorbidae"
 
-# correct genus and species in the large data set
-TREAM[c("Genus2", "Species2")] <- str_split_fixed(TREAM$taxon, " ", 2)
-TREAM[which(TREAM$Species2 == ""), "Species2"] <- NA
-row.index <- which(TREAM["Genus.group"] != TREAM["Genus2"])
-row.index2 <- which(TREAM["species"] != TREAM["Species2"])
+# correct genus and species in the TREAM data set
+# split the corrected species names
+TREAM[c("Genus_corrected", "Species_corrected")] <- str_split_fixed(TREAM$taxon, " ", 2)
+# replace missing data with NA
+TREAM[which(TREAM$Species_corrected == ""), "Species_corrected"] <- NA
+# extract rows where the identified scientific name is not the same as the corrected one
+row.index <- which(TREAM["Genus.group"] != TREAM["Genus_corrected"])
+row.index2 <- which(TREAM["species"] != TREAM["Species_corrected"])
 
+# replace the identified scientific name with the corrected one
 for (i in 1:length(row.index)) {
-    TREAM[row.index[i], "Genus.group"] <- TREAM[row.index[i], "Genus2"]
+    TREAM[row.index[i], "Genus.group"] <- TREAM[row.index[i], "Genus_corrected"]
 }
 
 for (i in 1:length(row.index2)) {
-  TREAM[row.index2[i], "species"] <- TREAM[row.index2[i], "Species2"]
+  TREAM[row.index2[i], "species"] <- TREAM[row.index2[i], "Species_corrected"]
 }
 
 # remove additional columns
 TREAM <- TREAM[, -c(13,14)]
+
+# back transform data set to data frame
+TREAM <- as.data.frame(TREAM)
+
+# add column which specifies to which level the individuum was identified
+TREAM$taxon_level <- NA
+TREAM[which(!is.na(TREAM$taxon)), "taxon_level"] <- "s"
+TREAM[which(TREAM$species == "sp."), "taxon_level"] <- "g"
+TREAM[which(TREAM$species == "Gr."), "taxon_level"] <- "g"
+TREAM[which(TREAM$species == "COP"), "taxon_level"] <- "g"
+TREAM[grep("/",TREAM[,"species"]), "taxon_level"] <- "g"
+TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
+
+# remove rows with NA
+TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
 
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
