@@ -140,30 +140,4 @@ ggplot(TREAM_info_countries, aes(x=country, y= no_records))+
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Number of records per country")
 
-# Taxa
-TREAM$taxon <- paste(TREAM$Genus.group, TREAM$species)
-row_index <- c(grep("/",TREAM[,"taxon"]), grep("sp.",TREAM[,"taxon"]), grep("Gen. sp.",TREAM[,"taxon"]))
-TREAM[row_index, "taxon"] <- NA
 
-#remove appendix
-TREAM$taxon <- str_remove(TREAM$taxon, " Lv.")
-TREAM$taxon <- str_remove(TREAM$taxon, " Ad.")
-TREAM$taxon <- str_remove(TREAM$taxon, " ssp.")
-TREAM$taxon <- str_replace(TREAM$taxon, "-", " -")
-TREAM$taxon <- str_remove(TREAM$taxon, " -gr.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -agg.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -Gr.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -Agg.")
-
-#remove subspecies
-TREAM <- TREAM %>%
-  as_tibble() %>%
-  mutate(
-    taxon = map_chr(
-      str_split(taxon, pattern = "\\s+"),
-      ~ str_flatten(.x[1:2], " ")))
-
-# adjust certain minor mistakes
-TREAM[which(TREAM$taxon == "Thienemannimyia Gr."), "taxon"] <- NA
-TREAM[which(TREAM$taxon == "Corbicula \"fluminalis\""),"taxon"] <- "Corbicula fluminalis"
-TREAM[which(TREAM$taxon == "Orthocladiini COP"),"taxon"] <- NA
