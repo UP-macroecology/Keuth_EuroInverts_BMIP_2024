@@ -1,5 +1,7 @@
 # Working on the subselection of the data
 # Goal: Obtain a selection of countries which are as spatially continous as possible while also having as much temporal cover as possible
+# This script contains a lot of code with which I tried to find conditions to subselect the data set (this is now done using the shiny app, however this script is kept for preserving code
+# which I may need in the app)
 
 # Loading packages
 library(rworldmap)
