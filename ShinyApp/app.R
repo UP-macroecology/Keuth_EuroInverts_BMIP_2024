@@ -19,10 +19,11 @@ library(shinyWidgets)
 # Setup for the app -----------------------
 
 # Loading the data
-Euro_Invert <- read.csv("data/Euro_FreshInv_preprocessed.csv")
+#Euro_Invert <- read.csv("data/Euro_FreshInv_preprocessed.csv")
+Euro_Invert <- read.csv("data/TREAM_preprocessed.csv")
 
 # Extract only the data at species-level identification
-Euro_Invert <- Euro_Invert[which(!is.na(Euro_Invert$species)),]
+Euro_Invert <- Euro_Invert[which(!is.na(Euro_Invert$taxon)),]
 countries <- unique(Euro_Invert$country)
 
 # Prepare data for map
@@ -145,7 +146,7 @@ server <- function(input, output){
     }
     #calculate coverage value per country (Coverage represents the completeness of the data set regarding three dimensions: space, time, taxon, 100% = perfect sampling)
     coverage <- lapply(Euro_Invert_list(), function(x){
-      (round(nrow(x)/(length(unique(x$species))*length(unique(x$site_id))*length(input$StartYear:2020)),2))
+      (round(nrow(x)/(length(unique(x$taxon))*length(unique(x$site_id))*length(input$StartYear:2020)),2))
       })
     coverage <- as.data.frame(do.call(rbind, coverage))
     coverage <- tibble::rownames_to_column(coverage, "country")
@@ -158,18 +159,18 @@ server <- function(input, output){
   metrics <- reactive({
     tmp <-data.frame(
     TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/length(input$StartYear:2020), 4) *100),
-    no_species = c(length(unique(Euro_Invert_sub()$species))),
+    no_species = c(length(unique(Euro_Invert_sub()$taxon))),
     Coverage = c(
-        (nrow(Euro_Invert_sub())/(length(unique(Euro_Invert_sub()$species))*length(unique(Euro_Invert_sub()$site_id))*length(input$StartYear:2020)))*100)
+        (nrow(Euro_Invert_sub())/(length(unique(Euro_Invert_sub()$taxon))*length(unique(Euro_Invert_sub()$site_id))*length(input$StartYear:2020)))*100)
       )
     colnames(tmp) <- c("Time Coverage [%]", "No. Species", "Coverage [%]")
     tmp
     })
   
   # calculate metrics (proportion of sampled years, coverage of countries) per species level
-  species_counts <- reactive({Euro_Invert_sub() %>% group_by(species) %>% count()})
-  species_metrics <- reactive({Euro_Invert_sub() %>% group_by(species) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
-      full_join(species_counts(), by = join_by(species)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
+  species_counts <- reactive({Euro_Invert_sub() %>% group_by(taxon) %>% count()})
+  species_metrics <- reactive({Euro_Invert_sub() %>% group_by(taxon) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
+      full_join(species_counts(), by = join_by(taxon)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
                                                                   coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
       arrange(desc(coverage))})
