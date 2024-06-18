@@ -207,9 +207,6 @@ for (i in 1:length(row.index2)) {
 # remove additional columns
 TREAM <- TREAM[, -c(13,14)]
 
-# back transform data set to data frame
-TREAM <- as.data.frame(TREAM)
-
 # add column which specifies to which level the individuum was identified
 TREAM$taxon_level <- NA
 TREAM[which(!is.na(TREAM$taxon)), "taxon_level"] <- "s"
@@ -219,8 +216,65 @@ TREAM[which(TREAM$species == "COP"), "taxon_level"] <- "g"
 TREAM[grep("/",TREAM[,"species"]), "taxon_level"] <- "g"
 TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 
+# back transform data set to data frame
+TREAM <- as.data.frame(TREAM)
+
+# Genus level ------
+# load in data
+TREAM <- read.csv("data/TREAM_preprocessed.csv")
+
+# set Genus to NA, if it wasn't determined
+TREAM[which(TREAM$species == "Gen. sp."), "Genus.group"] <- NA
+TREAM[grep("/",TREAM[,"species"]), "species"] <- NA
+TREAM$species[TREAM$species %in% c("sp.", "Gen. sp.", "s.")] <- NA
+
+# rename column
+names(TREAM)[names(TREAM) == "Genus.group"] <- "genus"
+
+# Family level -------
+# clean the family level
+TREAM[which(TREAM$Family == "Enchytraeidae\xa0"), "Family"] <- "Enchytraeidae"
+TREAM[which(TREAM$Family == "Naididae (formerly Tubificidae)"), "Family"] <- "Naididae"
+TREAM[which(TREAM$Family == "Naididae/Tubificidae"), "Family"] <- "Naididae"
+TREAM[which(TREAM$Family == "Sciomyzidae (=Tetanoceridae)"), "Family"] <- "Sciomyzidae"
+TREAM[which(TREAM$Family == "Scirtidae (=Helodidae)"), "Family"] <- "Scirtidae"
+TREAM[which(TREAM$Family == "Thaumaleidae (=Orphnephilidae)"), "Family"] <- "Thaumaleidae"
+TREAM[which(TREAM$Family == "Anthomyiidae "), "Family"] <- "Anthomyiidae"
+TREAM[which(TREAM$Family == "Ancylidae"), "Family"] <- "Planorbidae"
+TREAM[which(TREAM$Family == "Corbiculidae"), "Family"] <- "Cyrenidae"
+TREAM[which(TREAM$Family == "Tubificidae"), "Family"] <- "Naididae"
+TREAM[which(TREAM$Family == "Clavidae"), "Family"] <- "Cordylophoridae"
+TREAM[which(TREAM$Family == "Nabididae"), "Family"] <- "Naididae"
+
+#TREAM[which(TREAM$Family == "Leuctridae/Capniidae"),]
+families <- sort(unique(TREAM$Family))
+
+# obtain the order level for every single identification
+
+families_order <- data.frame()
+for (i in 1:length(families)){
+  temp <- tax_name(families[i], get = "order")
+  families_order <- rbind(families_order, temp)
+}
+
+#check manually the families for which no order could be found
+families_order[which(families_order$query == "Atyidae"), "order"] <- "Decapoda"
+families_order[which(families_order$query == "Cylindrotomidae"), "order"] <- "Diptera"
+families_order[which(families_order$query == "Enchytraeidae"), "order"] <- "Enchytraeida"
+families_order[which(families_order$query == "Limoniidae"), "order"] <- "Diptera"
+families_order[which(families_order$query == "Pediciidae"), "order"] <- "Diptera"
+families_order[which(families_order$query == "Platycnemididae"), "order"] <- "Odonata"
+families_order[which(families_order$query == "Cordylophoridae"), "order"] <- "Anthoathecata"
+
+#tmp <- families_order[which(is.na(families_order$order)),]
+
+# merge both data sets
+TREAM <- merge(TREAM, families_order, by.x = "Family", by.y = "query")
+TREAM <- TREAM[,-14]
 # remove rows with NA
 TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
+
+#write.table(tmp, "data/test.txt", sep = ",", row.names = F)
 
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
