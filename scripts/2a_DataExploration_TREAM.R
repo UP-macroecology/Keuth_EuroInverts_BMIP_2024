@@ -166,3 +166,31 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   theme(axis.text.x = element_text(hjust = 0.5))+
   ggtitle("Proportion of taxon level per country")+
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Genus", "Species"))
+
+# study site turnover per country -----
+TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
+TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+TREAM_list <- split(TREAM, TREAM$site_id)
+
+study_site1 <- TREAM_list[[1]]
+
+study_site_full <- as.data.frame(sort(unique(study_site1$date)))
+names(study_site_full) <- c("Date")
+
+species <- unique(study_site1$taxon)
+species <- na.exclude(species)
+for (i in 1:length(species)){
+  study_site_full$tmp <- NA
+  names(study_site_full)[names(study_site_full) == "tmp"] <- species[i]
+}
+
+for (k in 1:length(species)){
+  for (i in 1:length(unique(study_site_full$Date))) {
+    tmp <- study_site1[which(study_site1$taxon == species[k]), ]
+    if(unique(study_site_full$Date)[i] %in% unique(tmp$date) == T){
+      study_site_full[study_site_full$Date == unique(study_site_full$Date)[i], species[k]] <- "1"
+    }
+  }
+}
+
+# continue to work on the expansion of the data set and including structural 0
