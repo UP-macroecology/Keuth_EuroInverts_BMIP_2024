@@ -168,11 +168,79 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Genus", "Species"))
 
 # study site turnover per country -----
+TREAM <- read.csv("data/TREAM_preprocessed.csv")
 TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
 TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+TREAM <- TREAM[!is.na(TREAM$date),]
 TREAM_list <- split(TREAM, TREAM$site_id)
 
-study_site1 <- TREAM_list[[1]]
+TREAM_long <- lapply(TREAM_list, function(x){
+  df_long <- as.data.frame(sort(unique(x$date)));
+  names(df_long) <- c("Date");
+  species <- na.exclude(unique(x$taxon));
+  if(length(species) != 0){
+  for (i in 1:length(species)){
+    df_long$tmp <- NA
+    names(df_long)[names(df_long) == "tmp"] <- species[i]
+  };
+  for (k in 1:length(species)){
+    for (i in 1:length(unique(df_long$Date))) {
+      tmp <- x[which(x$taxon == species[k]), ]
+        if(length(x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"]) == 1)
+        df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"])
+    }
+  };
+  df_long[is.na(df_long)] <- 0};
+  return(df_long)
+})
+
+TREAM_long <- lapply(TREAM_long, function(x){
+  if(ncol(x) > 1){
+    x <- x %>% pivot_longer(!Date, names_to = "taxon", values_to = "abundances");
+    x <- as.data.frame(x)};
+  return(x)
+})
+
+tmp <- lapply(TREAM_long, function(x){which(ncol(x) == 1)})
+test <- as.data.frame(do.call(rbind, tmp))
+test <- tibble::rownames_to_column(test, "site_id")
+
+test2 <- TREAM_long[-c(test$site_id)]
+TREAM_long[ncol(TREAM_long)>1]
+
+#stopped working on the problem of removing certain elements of the list
+
+# TREAM_long <- vector("list", length(TREAM_list))
+# for(pos in 1:length(TREAM_list)){
+#   x <- TREAM_list[[pos]]
+#   df_long <- as.data.frame(sort(unique(x$date)))
+#   names(df_long) <- c("Date")
+#   species <- na.exclude(unique(x$taxon))
+#   if(length(species) != 0){
+#     for (i in 1:length(species)){
+#       df_long$tmp <- NA
+#       names(df_long)[names(df_long) == "tmp"] <- species[i]
+#     }
+#     for (k in 1:length(species)){
+#       for (i in 1:length(unique(df_long$Date))) {
+#         tmp <- x[which(x$taxon == species[k]), ]
+#         if(unique(df_long$Date)[i] %in% unique(tmp$date) == T){
+#           print(unique(df_long$Date)[i])
+#           print(species[k])
+#           df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"]
+#         }
+#       }
+#     }
+#     df_long[is.na(df_long)] <- 0}
+#   TREAM_long[[pos]] <- df_long
+# }
+# 
+ x[which(x$date == "2013-10-01" & x$taxon == "Polycentropus flavomaculatus"), "abundance"]
+
+
+
+
+
 
 study_site_full <- as.data.frame(sort(unique(study_site1$date)))
 names(study_site_full) <- c("Date")
@@ -192,5 +260,32 @@ for (k in 1:length(species)){
     }
   }
 }
+
+study_site_full[is.na(study_site_full)] <- 0
+
+
+
+tmp <- TREAM %>% group_by(site_id) %>% do(as.data.frame(sort(unique(.$date)))) 
+tmp <- TREAM %>% group_by(site_id, date, taxon) %>% do(as.data.frame(sort(.$abundance))) 
+tmp <- TREAM[, c("site_id", "date", "taxon", "abundance")] %>% filter(!is.na(taxon))
+
+tmp <- tmp[order(tmp$site_id, tmp$date),]
+tmp2 <- tmp %>%
+  pivot_wider(names_from = taxon, values_from = abundance)
+
+tmp2 <- TREAM %>% group_by(site_id) %>% pivot_wider(names_from = taxon, values_from = abundance)
+
+tmp <- study_site1 %>% group_by(date) %>% pivot_wider(names_from = taxon, values_from = abundance)
+
+rename("Date" = "sort(unique(.$date))") %>% 
+  do(for (i in 1:length(species)){.$tmp <- NA
+  names(study_site_full)[names(study_site_full) == "tmp"] <- species[i]})
+
+study_site1 <- TREAM_list[[1]]
+
+
+
+study_site_long <- study_site_full %>%
+  pivot_longer(cols = 2:38, names_to = "taxon", values_to = "abundance")
 
 # continue to work on the expansion of the data set and including structural 0
