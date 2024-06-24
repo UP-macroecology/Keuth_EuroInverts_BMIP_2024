@@ -168,21 +168,48 @@ ggplot(data = proportion_completeness_taxon_countries_long, aes(x = country, y=p
   scale_fill_manual("Proportion of", values = c("#FF6666", "#33CCFF", "darkgreen"), labels = c("Coarser", "Genus", "Species"))
 
 # study site turnover per country -----
+# calculate number of years per country and study site and merge them
+no_years_countries <- TREAM %>% group_by(country) %>% summarise(no_years_c = n_distinct(year))
+no_years_studysites <- TREAM %>% group_by(country, site_id) %>% summarise(no_years = n_distinct(year)) %>% full_join(no_years_countries, by = join_by(country)) %>% 
+  mutate(per_cov_years = (no_years/no_years_c) * 100, site_id = as.character(site_id))
+
+
+# Plot the proportion of sampled years per study sites for each country
+ggplot(data=no_years_studysites, aes(x = reorder(site_id, per_cov_years), y = per_cov_years))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~ country, scales = "free_x")+
+  xlab("Study Site")+
+  ggtitle("Sampled years per study site [%]")+
+  theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
+  ylab("")
+
+
+# place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
+
+# add date to the data set
 TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
 TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+
+# remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
 TREAM <- TREAM[!is.na(TREAM$date),]
+
+# create a list for the single study sites
 TREAM_list <- split(TREAM, TREAM$site_id)
 
 TREAM_long <- lapply(TREAM_list, function(x){
+  # obtain the single dates per study site
   df_long <- as.data.frame(sort(unique(x$date)));
   names(df_long) <- c("Date");
+  # obtain the sampled species per study site
   species <- na.exclude(unique(x$taxon));
+  #add a column for every single species that was sampled
   if(length(species) != 0){
   for (i in 1:length(species)){
     df_long$tmp <- NA
     names(df_long)[names(df_long) == "tmp"] <- species[i]
   };
+    #add abundance number to the specific cell (species, date combination)
   for (k in 1:length(species)){
     for (i in 1:length(unique(df_long$Date))) {
       tmp <- x[which(x$taxon == species[k]), ]
@@ -190,102 +217,29 @@ TREAM_long <- lapply(TREAM_list, function(x){
         df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"])
     }
   };
+    # add 0 whenever a specific species was not sampled
   df_long[is.na(df_long)] <- 0};
   return(df_long)
 })
 
-TREAM_long <- lapply(TREAM_long, function(x){
+#Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
+sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
+sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
+sites_wo_species <- sites_wo_species %>% tibble::rownames_to_column(., "site_id") %>% filter(., V1 > 1) 
+TREAM_long <- TREAM_long[sites_wo_species$site_id]
+
+# elongate data frames tomatch the TREAM data set
+TREAM_long2 <- lapply(TREAM_long, function(x){
   if(ncol(x) > 1){
-    x <- x %>% pivot_longer(!Date, names_to = "taxon", values_to = "abundances");
+    x <- x %>% pivot_longer(!Date, names_to = "taxon", values_to = "abundances") %>% filter(., abundances == 0);
     x <- as.data.frame(x)};
   return(x)
 })
 
-tmp <- lapply(TREAM_long, function(x){which(ncol(x) == 1)})
-test <- as.data.frame(do.call(rbind, tmp))
-test <- tibble::rownames_to_column(test, "site_id")
+TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
 
-test2 <- TREAM_long[-c(test$site_id)]
-TREAM_long[ncol(TREAM_long)>1]
-
-#stopped working on the problem of removing certain elements of the list
-
-# TREAM_long <- vector("list", length(TREAM_list))
-# for(pos in 1:length(TREAM_list)){
-#   x <- TREAM_list[[pos]]
-#   df_long <- as.data.frame(sort(unique(x$date)))
-#   names(df_long) <- c("Date")
-#   species <- na.exclude(unique(x$taxon))
-#   if(length(species) != 0){
-#     for (i in 1:length(species)){
-#       df_long$tmp <- NA
-#       names(df_long)[names(df_long) == "tmp"] <- species[i]
-#     }
-#     for (k in 1:length(species)){
-#       for (i in 1:length(unique(df_long$Date))) {
-#         tmp <- x[which(x$taxon == species[k]), ]
-#         if(unique(df_long$Date)[i] %in% unique(tmp$date) == T){
-#           print(unique(df_long$Date)[i])
-#           print(species[k])
-#           df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"]
-#         }
-#       }
-#     }
-#     df_long[is.na(df_long)] <- 0}
-#   TREAM_long[[pos]] <- df_long
-# }
-# 
- x[which(x$date == "2013-10-01" & x$taxon == "Polycentropus flavomaculatus"), "abundance"]
+TREAM$site_id <- as.character(TREAM$site_id)
+test <- bind_rows(TREAM, TREAM_long2)
 
 
-
-
-
-
-study_site_full <- as.data.frame(sort(unique(study_site1$date)))
-names(study_site_full) <- c("Date")
-
-species <- unique(study_site1$taxon)
-species <- na.exclude(species)
-for (i in 1:length(species)){
-  study_site_full$tmp <- NA
-  names(study_site_full)[names(study_site_full) == "tmp"] <- species[i]
-}
-
-for (k in 1:length(species)){
-  for (i in 1:length(unique(study_site_full$Date))) {
-    tmp <- study_site1[which(study_site1$taxon == species[k]), ]
-    if(unique(study_site_full$Date)[i] %in% unique(tmp$date) == T){
-      study_site_full[study_site_full$Date == unique(study_site_full$Date)[i], species[k]] <- "1"
-    }
-  }
-}
-
-study_site_full[is.na(study_site_full)] <- 0
-
-
-
-tmp <- TREAM %>% group_by(site_id) %>% do(as.data.frame(sort(unique(.$date)))) 
-tmp <- TREAM %>% group_by(site_id, date, taxon) %>% do(as.data.frame(sort(.$abundance))) 
-tmp <- TREAM[, c("site_id", "date", "taxon", "abundance")] %>% filter(!is.na(taxon))
-
-tmp <- tmp[order(tmp$site_id, tmp$date),]
-tmp2 <- tmp %>%
-  pivot_wider(names_from = taxon, values_from = abundance)
-
-tmp2 <- TREAM %>% group_by(site_id) %>% pivot_wider(names_from = taxon, values_from = abundance)
-
-tmp <- study_site1 %>% group_by(date) %>% pivot_wider(names_from = taxon, values_from = abundance)
-
-rename("Date" = "sort(unique(.$date))") %>% 
-  do(for (i in 1:length(species)){.$tmp <- NA
-  names(study_site_full)[names(study_site_full) == "tmp"] <- species[i]})
-
-study_site1 <- TREAM_list[[1]]
-
-
-
-study_site_long <- study_site_full %>%
-  pivot_longer(cols = 2:38, names_to = "taxon", values_to = "abundance")
-
-# continue to work on the expansion of the data set and including structural 0
+# next goal: join the single data sets with the long TREAM data set by joining them based on the columns date and site_id
