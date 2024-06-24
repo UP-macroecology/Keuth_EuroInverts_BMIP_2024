@@ -19,12 +19,10 @@ library(shinyWidgets)
 # Setup for the app -----------------------
 
 # Loading the data
-#Euro_Invert <- read.csv("data/Euro_FreshInv_preprocessed.csv")
-Euro_Invert <- read.csv("data/TREAM_preprocessed.csv")
+Euro_Invert_raw <- read.csv("data/TREAM_preprocessed.csv")
 
 # Extract only the data at species-level identification
-Euro_Invert <- Euro_Invert[which(!is.na(Euro_Invert$taxon)),]
-countries <- unique(Euro_Invert$country)
+countries <- unique(Euro_Invert_raw$country)
 
 # Prepare data for map
 world_map <- maps::map("world", plot=FALSE)
@@ -42,15 +40,23 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       # Slider to select the start Year of the Data
-      sliderInput("StartYear", "Select start Year", 1980, 1990, 1980, step = 1, sep = ""),
+      sliderInput("StartYear", "Select Start Year", 1980, 1990, 1980, step = 1, sep = ""),
+      # Slider to select the threshold for the proportion of sampled years per study site
+      sliderInput("ThresholdStudySite", "Set threshold for covered years per country [%]", 0, 100, 0, step = 5, sep = ""),
       # Picker to select the countries the data should include (default is all countries in the data set)
-      pickerInput("SelectCountries", "Select countries", choices = unique(Euro_Invert$country), selected = unique(Euro_Invert$country), options = list(`actions-box` = TRUE), multiple = T),
+      pickerInput("SelectCountries", "Select countries", choices = sort(unique(Euro_Invert_raw$country)), selected = sort(unique(Euro_Invert_raw$country)), options = list(`actions-box` = TRUE), multiple = T),
+      # Picker to select the orders the data should include (default is all orders in the data set)
+      uiOutput("SelectOrders_Picker"),
+      # Check box to include only data with identifications on species level
+      checkboxInput("SpeciesLevelData", "Use only data with identification on species level"),
       # Plot for the sampled years of the different countries
       plotOutput("TimeCoverage"),
       # Plot for the species number for the different countries
       plotOutput("SpeciesNumber"),
       # Plot for the coverage of all possible combinations in 3D option (spatial, temporal, taxonomic)
-      plotOutput("Coverage")
+      plotOutput("Coverage"),
+      #Plot for proportion of sampled years per study site
+      plotOutput("SiteTimeCoverage", height = "700px")
     ),
     mainPanel(
       # Metrics for the current selected data set
@@ -65,11 +71,40 @@ ui <- fluidPage(
 
 # Define Server --------------
 server <- function(input, output){
+  
   # subsetting data set based on selected start time and countries
-  Euro_Invert_sub <- reactive({subset(Euro_Invert, Euro_Invert$country %in% input$SelectCountries & Euro_Invert$year >= input$StartYear)})
+  Euro_Invert_sub <- reactive({subset(Euro_Invert_raw, Euro_Invert_raw$country %in% input$SelectCountries & Euro_Invert_raw$year >= input$StartYear)})
+  
+  # Obtain percentage of sampled years per study site
+  no_years_countries <- reactive({Euro_Invert_sub() %>% group_by(country) %>% summarise(no_years_c = n_distinct(year))})
+  no_years_studysites <- reactive({Euro_Invert_sub() %>% group_by(country, site_id) %>% summarise(no_years = n_distinct(year)) %>% full_join(no_years_countries(), by = join_by(country)) %>% 
+      mutate(per_cov_years = (no_years/no_years_c) * 100, site_id = as.character(site_id))})
+  
+  # merge information with large dataset
+  Euro_Invert_joined <- reactive({Euro_Invert_sub() %>% mutate(site_id = as.character(site_id)) %>% full_join(no_years_studysites(), by = join_by(site_id))})
+  
+  # subset based on threshold selections
+  Euro_Invert_sub2 <- reactive({subset(Euro_Invert_joined(), Euro_Invert_joined()$per_cov_years >= input$ThresholdStudySite)})
+  
+  # subset data if only species level identification should be displayed
+  Euro_Invert_sl <- reactive({if(input$SpeciesLevelData == T){
+    Euro_Invert_sub2()[which(!is.na(Euro_Invert_sub2()$taxon)),]
+  } else {
+    Euro_Invert_sub2()
+  }
+  })
+  
+  #Picker input for the different taxonomic orders
+  output$SelectOrders_Picker <- renderUI({
+    pickerInput("SelectOrders", "Which orders do you want to investigate?", na.exclude(sort(unique(Euro_Invert_sl()$order))), selected = na.exclude(sort(unique(Euro_Invert_sl()$order))),
+                options = list(`actions-box` = TRUE), multiple = T)
+  })
+  
+  # subsetting data set based on order selection
+  Euro_Invert <- reactive({subset(Euro_Invert_sl(), Euro_Invert_sl()$order %in% input$SelectOrders)})
 
   # Splitting dataframe into a list based on country selection
-  Euro_Invert_list <- reactive({(split(Euro_Invert, Euro_Invert$country))})
+  Euro_Invert_list <- reactive({(split(Euro_Invert_raw, Euro_Invert_raw$country))})
 
   # Obtain sampled years per country
   sampling_years_countries <- reactive({lapply(Euro_Invert_list(), function(x){unique(x$year)})})
@@ -134,7 +169,7 @@ server <- function(input, output){
   # create data set which contains specific information for every country
   Euro_Invert_info <- reactive({
     # number of species identified for every country
-    dat <- Euro_Invert %>% group_by(country) %>% summarise(no_species = n_distinct(species))
+    dat <- Euro_Invert_raw %>% group_by(country) %>% summarise(no_species = n_distinct(species))
     # Calculate proportion of present years and proportion of missing years
     dat$p_years_miss <- NA
     dat$p_years_pres <- NA
@@ -158,18 +193,18 @@ server <- function(input, output){
   #calculate metrics (proportion of sampled years, number of species, coverage) for the subset data
   metrics <- reactive({
     tmp <-data.frame(
-    TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/length(input$StartYear:2020), 4) *100),
-    no_species = c(length(unique(Euro_Invert_sub()$taxon))),
+    TimeCoverage = c(round(length(unique(Euro_Invert()$year))/length(input$StartYear:2020), 4) *100),
+    no_species = c(length(unique(Euro_Invert()$taxon))),
     Coverage = c(
-        (nrow(Euro_Invert_sub())/(length(unique(Euro_Invert_sub()$taxon))*length(unique(Euro_Invert_sub()$site_id))*length(input$StartYear:2020)))*100)
+        (nrow(Euro_Invert())/(length(unique(Euro_Invert()$taxon))*length(unique(Euro_Invert()$site_id))*length(input$StartYear:2020)))*100)
       )
     colnames(tmp) <- c("Time Coverage [%]", "No. Species", "Coverage [%]")
     tmp
     })
   
   # calculate metrics (proportion of sampled years, coverage of countries) per species level
-  species_counts <- reactive({Euro_Invert_sub() %>% group_by(taxon) %>% count()})
-  species_metrics <- reactive({Euro_Invert_sub() %>% group_by(taxon) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
+  species_counts <- reactive({Euro_Invert() %>% group_by(taxon) %>% count()})
+  species_metrics <- reactive({Euro_Invert() %>% group_by(taxon) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country.y), no_studysites = n_distinct(site_id)) %>%
       full_join(species_counts(), by = join_by(taxon)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
                                                                   coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
@@ -177,10 +212,10 @@ server <- function(input, output){
   # rename the columns
   species_metrics2 <- reactive({
     tmp <- species_metrics()
+    tmp <- tmp[which(!is.na(tmp$taxon)),]
     colnames(tmp) <- c("species", "No. Years", "No. Countries", "No. Studysites", "No. Detections", "Time coverage [%]", "Spatial coverage [%]", "Coverage [%]")
     tmp
   })
-  
   
   # Table to display the metrics above the map and below the map
   output$Metrics <- renderTable(metrics())
@@ -218,6 +253,17 @@ server <- function(input, output){
       theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
       theme(axis.text.x = element_text(hjust = 0.5))+
       ggtitle("Coverage per country [%]")
+  })
+  
+  # Plot for sampled years per study site
+  output$SiteTimeCoverage <- renderPlot({
+    ggplot(data=no_years_studysites(), aes(x = reorder(site_id, per_cov_years), y = per_cov_years))+
+      geom_bar(stat = "identity")+
+      facet_wrap(~ country, scales = "free_x")+
+      xlab("Study Site")+
+      ggtitle("Proportion of sampled years per study site [%]")+
+      theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
+      ylab("")
   })
   
   # Map with the selected countries
