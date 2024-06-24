@@ -18,6 +18,8 @@ TREAM$taxon <- paste(TREAM$Genus.group, TREAM$species)
 
 # remove species names that are just identified to genus or family level
 TREAM[grep("/",TREAM[,"taxon"]), "taxon"] <- NA
+TREAM$species <- str_remove(TREAM$species, " Lv.")
+TREAM$species <- str_remove(TREAM$species, " Ad.")
 TREAM$taxon[TREAM$species %in% c("sp.", "Gen. sp.")] <- NA
 TREAM[which(TREAM$taxon == " "),] <- NA
 
@@ -220,8 +222,6 @@ TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 TREAM <- as.data.frame(TREAM)
 
 # Genus level ------
-# load in data
-TREAM <- read.csv("data/TREAM_preprocessed.csv")
 
 # set Genus to NA, if it wasn't determined
 TREAM[which(TREAM$species == "Gen. sp."), "Genus.group"] <- NA
@@ -246,11 +246,9 @@ TREAM[which(TREAM$Family == "Tubificidae"), "Family"] <- "Naididae"
 TREAM[which(TREAM$Family == "Clavidae"), "Family"] <- "Cordylophoridae"
 TREAM[which(TREAM$Family == "Nabididae"), "Family"] <- "Naididae"
 
-#TREAM[which(TREAM$Family == "Leuctridae/Capniidae"),]
 families <- sort(unique(TREAM$Family))
 
 # obtain the order level for every single identification
-
 families_order <- data.frame()
 for (i in 1:length(families)){
   temp <- tax_name(families[i], get = "order")
@@ -266,15 +264,15 @@ families_order[which(families_order$query == "Pediciidae"), "order"] <- "Diptera
 families_order[which(families_order$query == "Platycnemididae"), "order"] <- "Odonata"
 families_order[which(families_order$query == "Cordylophoridae"), "order"] <- "Anthoathecata"
 
-#tmp <- families_order[which(is.na(families_order$order)),]
+#save the data set
+#save(families_order, file="data/families_orders_TREAM.Rdata")
+load("data/families_orders_TREAM.Rdata")
 
 # merge both data sets
 TREAM <- merge(TREAM, families_order, by.x = "Family", by.y = "query")
 TREAM <- TREAM[,-14]
 # remove rows with NA
 TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
-
-#write.table(tmp, "data/test.txt", sep = ",", row.names = F)
 
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
