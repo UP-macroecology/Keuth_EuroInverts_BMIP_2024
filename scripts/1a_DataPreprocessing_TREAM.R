@@ -13,46 +13,61 @@ library(tibble)
 # load in data
 TREAM <- read.csv("data/TREAM/TREAM_allTaxa.csv")
 
-# Create full scientific species name from two columns
-TREAM$taxon <- paste(TREAM$Genus.group, TREAM$species)
+# correct object classes of some columns
+TREAM$site_id <- as.character(TREAM$site_id)
+TREAM$month <- as.integer(TREAM$month) # entries of month of Italy is set to NA, as they specified the month as 6 o 8
 
-# remove species names that are just identified to genus or family level
-TREAM[grep("/",TREAM[,"taxon"]), "taxon"] <- NA
-TREAM$species <- str_remove(TREAM$species, " Lv.")
-TREAM$species <- str_remove(TREAM$species, " Ad.")
-TREAM$taxon[TREAM$species %in% c("sp.", "Gen. sp.")] <- NA
-TREAM[which(TREAM$taxon == " "),] <- NA
+# add date to the data set
+TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
+TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+
+# Create full scientific species name from two columns
+TREAM$binomial <- paste(TREAM$Genus.group, TREAM$species)
+
+# reorder columns in data frame
+TREAM <- TREAM %>% relocate(country, .after = site_id) %>% relocate(date, .after = year) %>% relocate(binomial, .after = species)
+
+# remove binomial name for individuals that are just identified to genus or family level
+TREAM[grep("/",TREAM[,"binomial"]), "binomial"] <- NA
+TREAM[TREAM$species %in% c("sp.", "Gen. sp."), "binomial"] <- NA
+TREAM[which(TREAM$binomial == " "),] <- NA
 
 #remove species appendices
-TREAM$taxon <- str_remove(TREAM$taxon, " Lv.")
-TREAM$taxon <- str_remove(TREAM$taxon, " Ad.")
-TREAM$taxon <- str_remove(TREAM$taxon, " ssp.")
-TREAM$taxon <- str_replace(TREAM$taxon, "-", " -")
-TREAM$taxon <- str_remove(TREAM$taxon, " -gr.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -agg.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -Gr.")
-TREAM$taxon <- str_remove(TREAM$taxon, " -Agg.")
+TREAM$species <- str_remove(TREAM$species, " Lv.")
+TREAM$species <- str_remove(TREAM$species, " Ad.")
+TREAM$binomial <- str_remove(TREAM$binomial, " Lv.")
+TREAM$binomial <- str_remove(TREAM$binomial, " Ad.")
+TREAM$binomial <- str_remove(TREAM$binomial, " ssp.")
+TREAM$binomial <- str_replace(TREAM$binomial, "-", " -")
+TREAM$binomial <- str_remove(TREAM$binomial, " -gr.")
+TREAM$binomial <- str_remove(TREAM$binomial, " -agg.")
+TREAM$binomial <- str_remove(TREAM$binomial, " -Gr.")
+TREAM$binomial <- str_remove(TREAM$binomial, " -Agg.")
 
 #remove subspecies identification
 TREAM <- TREAM %>%
   as_tibble() %>%
   mutate(
-    taxon = map_chr(
-      str_split(taxon, pattern = "\\s+"),
+    binomial = map_chr(
+      str_split(binomial, pattern = "\\s+"),
       ~ str_flatten(.x[1:2], " ")))
 
 TREAM <- as.data.frame(TREAM)
 
 # adjust certain minor mistakes in species names
-TREAM[which(TREAM$taxon == "Thienemannimyia Gr."), "taxon"] <- NA
-TREAM[which(TREAM$taxon == "Corbicula \"fluminalis\""),"taxon"] <- "Corbicula fluminalis"
-TREAM[which(TREAM$taxon == "Orthocladiini COP"),"taxon"] <- NA
-TREAM[which(TREAM$taxon == "Vejdovskiella comata"), "taxon"] <- "Vejdovskyella comata"
+TREAM[which(TREAM$binomial == "Vejdovskiella comata"), "binomial"] <- "Vejdovskyella comata"
+TREAM[which(TREAM$binomial == "Corbicula \"fluminalis\""),"binomial"] <- "Corbicula fluminalis"
 
-# check for correct species names
+#remove binomial names which don't make sense and can not be find
+TREAM[which(TREAM$binomial == "Thienemannimyia Gr."), "binomial"] <- NA
+TREAM[which(TREAM$binomial == "Orthocladiini COP"),"binomial"] <- NA
+TREAM[which(TREAM$species == "Gr."), "species"] <- NA
+TREAM[which(TREAM$species == "COP"), "species"] <- NA
+
+# check for correct binomial names -----------
 
 # extract species names
-species <- as.data.frame(sort(unique(TREAM$taxon)))
+species <- as.data.frame(sort(unique(TREAM$binomial)))
 names(species) <- c("identified")
 
 # loop through every single species and extract tsn code, which is then checked for the accepted name if the species was found in tsn to see if any synonyms were used
@@ -159,7 +174,7 @@ species[which(species$identified == "Synendotendipes lepidus"), "tsn_check"] <- 
 row_index <- which(species$identified != species$tsn_check)
 species_corrected <- species[row_index, "identified"]
 
-# replace all NAs with the identified species names, as all of them are correct
+# replace all NAs with the identified binomial names, as they are correct
 for (i in 1:nrow(species)){
   if(is.na(species$tsn_check[i])){
     species$tsn_check[i] <- species$identified[i]
@@ -169,28 +184,28 @@ for (i in 1:nrow(species)){
 # extract data from the species with the changed name to later check the coarser levels
 df_species_corrected <- c()
 for(i in 1:length(species_corrected)){
-  df_species_corrected <- rbind(df_species_corrected, TREAM[which(TREAM$taxon == species_corrected[i]),c(7:10, 12)])
+  df_species_corrected <- rbind(df_species_corrected, TREAM[which(TREAM$binomial == species_corrected[i]),c(7:10, 12)])
 }
 
 # keep only the distinct species names
 df_species_corrected <- distinct(df_species_corrected)
 
 # merge the extracted old species names with the new ones
-df_species_corrected <- merge(df_species_corrected, species, by.x = "taxon", by.y = "identified")
+df_species_corrected <- merge(df_species_corrected, species, by.x = "binomial", by.y = "identified")
 
 # add the corrected names to the data set
 for (i in 1:nrow(species)){
- TREAM[which(TREAM$taxon == species$identified[i]),"taxon"] <- species$tsn_check[i]
+ TREAM[which(TREAM$binomial == species$identified[i]),"binomial"] <- species$tsn_check[i]
 }
 
 # correct wrong coarser levels due to changes in the species names
-TREAM[which(TREAM$taxon == "Peringia ulvae"), "Group"] <- "Gastropoda"
-TREAM[which(TREAM$taxon == "Pettancylus clessinianus"), "Family"] <- "Planorbidae"
-TREAM[which(TREAM$taxon == "Odeles marginata"), "Family"] <- "Scirtidae"
+TREAM[which(TREAM$binomial == "Peringia ulvae"), "Group"] <- "Gastropoda"
+TREAM[which(TREAM$binomial == "Pettancylus clessinianus"), "Family"] <- "Planorbidae"
+TREAM[which(TREAM$binomial == "Odeles marginata"), "Family"] <- "Scirtidae"
 
 # correct genus and species in the TREAM data set
 # split the corrected species names
-TREAM[c("Genus_corrected", "Species_corrected")] <- str_split_fixed(TREAM$taxon, " ", 2)
+TREAM[c("Genus_corrected", "Species_corrected")] <- str_split_fixed(TREAM$binomial, " ", 2)
 # replace missing data with NA
 TREAM[which(TREAM$Species_corrected == ""), "Species_corrected"] <- NA
 # extract rows where the identified scientific name is not the same as the corrected one
@@ -207,14 +222,12 @@ for (i in 1:length(row.index2)) {
 }
 
 # remove additional columns
-TREAM <- TREAM[, -c(13,14)]
+TREAM <- TREAM[, -which(names(TREAM) %in% c("Genus_corrected", "Species_corrected"))]
 
 # add column which specifies to which level the individuum was identified
 TREAM$taxon_level <- NA
-TREAM[which(!is.na(TREAM$taxon)), "taxon_level"] <- "s"
+TREAM[which(!is.na(TREAM$binomial)), "taxon_level"] <- "s"
 TREAM[which(TREAM$species == "sp."), "taxon_level"] <- "g"
-TREAM[which(TREAM$species == "Gr."), "taxon_level"] <- "g"
-TREAM[which(TREAM$species == "COP"), "taxon_level"] <- "g"
 TREAM[grep("/",TREAM[,"species"]), "taxon_level"] <- "g"
 TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 
@@ -232,6 +245,113 @@ TREAM$species[TREAM$species %in% c("sp.", "Gen. sp.", "s.")] <- NA
 names(TREAM)[names(TREAM) == "Genus.group"] <- "genus"
 
 # Family level -------
+
+# obtain families name with outside function
+# obtain the order level for every single identification
+genus <- sort(unique(TREAM$genus))
+
+# genus_families <- data.frame()
+# for (i in 460:length(genus)){
+#   temp <- tax_name(genus[i], get = "family")
+#   genus_families <- rbind(genus_families, temp)
+# }
+
+# save data set
+#save(genus_families, file = "data/genus_families_TREAM.Rdata")
+load("data/genus_families_TREAM.Rdata")
+
+#check NAs
+genus_families[which(genus_families$query == "Agriotypus"), "family"] <- "Ichneumonidae"
+genus_families[which(genus_families$query %in% c("Ampullaceana", "Alainites", "Nigrobaetis")), "family"] <- "Baetidae"
+genus_families[which(genus_families$query == "Anisus"), "family"] <- "Curculionidae"
+genus_families[which(genus_families$query %in% c("Atrichops", "Atherix/Ibisia")), "family"] <- "Athericidae"
+genus_families[which(genus_families$query %in% c("Bathyomphalus", "Hippeutis", "Pettancylus", "Planorbarius", "Segmentina")), "family"] <- "Planorbidae"
+genus_families[which(genus_families$query %in% c("Batracobdelloides", "Hemiclepsis")), "family"] <- "Glossiphoniidae"
+genus_families[which(genus_families$query %in% c("Bazarella", "Berdeniella", "Clytocerus", "Jungiella", "Peripsychoda", "Pneumia", "Satchelliella", "Tonnoiriella", "Ulomyia")), "family"] <- "Psychodidae"
+genus_families[which(genus_families$query == "Borysthenia"), "family"] <- "Valvatidae"
+genus_families[which(genus_families$query %in% c("Brachytron", "Anax/Hemianax")), "family"] <- "Aeshnidae"
+genus_families[which(genus_families$query %in% c("Branchiura", "Vejdovskiella")), "family"] <- "Naididae"
+genus_families[which(genus_families$query == "Cataclysta"), "family"] <- "Crambidae"
+genus_families[which(genus_families$query %in% c("Ceriagrion", "Erythromma", "Pyrrhosoma", "Cercion")), "family"] <- "Coenagrionidae"
+genus_families[which(genus_families$query %in% c("Chalcolestes", "Sympecma")), "family"] <- "Lestidae"
+genus_families[which(genus_families$query == "Chelicorophium"), "family"] <- "Corophiidae"
+genus_families[which(genus_families$query %in% c("Cyphon", "Hydrocyphon", "Odeles")), "family"] <- "Scirtidae"
+genus_families[which(genus_families$query %in% c("Dacnogenia", "Electrogena", "Kageronia")), "family"] <- "Heptageniidae"
+genus_families[which(genus_families$query %in% c("Dicranomyia", "Dicranophragma", "Discobola", "Eloeophila", "Euphylidorea", "Neolimnomyia", "Phylidorea", "Rhypholophus", "Scleroprocta", "Eutonia", 
+                                                 "Neolimnomyia (Brachylimnophila)", "Neolimnomyia (Neolimnomyia)")), "family"] <- "Limoniidae"
+genus_families[which(genus_families$query %in% c("Dictyogenus", "Guadalgenus", "Hemimelaena", "Perlodes")), "family"] <- "Perlodidae"
+genus_families[which(genus_families$query == "Dikerogammarus"), "family"] <- "Gammaridae"
+genus_families[which(genus_families$query == "Esperiana"), "family"] <- "Melanopsidae"
+genus_families[which(genus_families$query %in% c("Euglesa", "Odhneripisidium", "Sphaerium")), "family"] <- "Sphaeriidae"
+genus_families[which(genus_families$query %in% c("Habroleptoides", "Habroleptoides/Paraleptophlebia")), "family"] <- "Leptophlebiidae"
+genus_families[which(genus_families$query %in% c("Isoptena", "Siphonoperla")), "family"] <- "Chloroperlidae"
+genus_families[which(genus_families$query == "Italobdella"), "family"] <- "Piscicolidae"
+genus_families[which(genus_families$query %in% c("Kloosia", "Lipiniella", "Chironomus (Chironomus)", "Micropsectra/Tanytarsus", "Orthocladiini", "Polypedilum (Polypedilum)")), "family"] <- "Chironomidae"
+genus_families[which(genus_families$query == "Liponeura"), "family"] <- "Blephariceridae"
+genus_families[which(genus_families$query == "Marstoniopsis"), "family"] <- "Amnicolidae"
+genus_families[which(genus_families$query == "Metreletus"), "family"] <- "Ameletidae"
+genus_families[which(genus_families$query %in% c("Micropterna", "Annitella/Chaetopteryx")), "family"] <- "Limnephilidae"
+genus_families[which(genus_families$query %in% c("Myxas", "Omphiscola", "Peregriana")), "family"] <- "Lymnaeidae"
+genus_families[which(genus_families$query == "Nemurella"), "family"] <- "Nemouridae"
+genus_families[which(genus_families$query == "Niphargus"), "family"] <- "Niphargidae"
+genus_families[which(genus_families$query %in% c("Obesogammarus", "Pontogammarus")), "family"] <- "Pontogammaridae"
+genus_families[which(genus_families$query == "Oligoneuriella"), "family"] <- "Oligoneuriidae"
+genus_families[which(genus_families$query == "Onychogomphus"), "family"] <- "Gomphidae"
+genus_families[which(genus_families$query == "Orthetrum"), "family"] <- "Libellulidae"
+genus_families[which(genus_families$query == "Osmylus"), "family"] <- "Osmylidae"
+genus_families[which(genus_families$query == "Palingenia"), "family"] <- "Palingeniidae"
+genus_families[which(genus_families$query == "Platycnemis"), "family"] <- "Platycnemididae"
+genus_families[which(genus_families$query == "Pomatinus"), "family"] <- "Dryopidae"
+genus_families[which(genus_families$query == "Rhabdiopteryx"), "family"] <- "Taeniopterygidae"
+genus_families[which(genus_families$query == "Thyas"), "family"] <- "Erebidae"
+genus_families[which(genus_families$query == "Torleya"), "family"] <- "Ephemerellidae"
+genus_families[which(genus_families$query == "Tricyphona"), "family"] <- "Pediciidae"
+genus_families[which(genus_families$query == "Tyrrhenoleuctra"), "family"] <- "Leuctridae"
+genus_families[which(genus_families$query == "Velia"), "family"] <- "Veliidae"
+genus_families[which(genus_families$query == "Bezzia-Gr."), "family"] <- "Ceratopogonidae"
+genus_families[which(genus_families$query == "Chelifera/Hemerodromia"), "family"] <- "Empididae"
+genus_families[which(genus_families$query == "Dicranota (Dicranota)"), "family"] <- "Pediciidae"
+genus_families[which(genus_families$query == "Rhyacophila (Rhyacophila)"), "family"] <- "Rhyacophilidae"
+genus_families[which(genus_families$query %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)") ), "family"] <- "Simuliidae"
+genus_families[which(genus_families$query == "Tipula (Yamatotipula)"), "family"] <- "Tipulidae"
+
+# clean wrongly corrected family names
+genus_families[which(genus_families$query == "Ampullaceana"), "family"] <- "Lymnaeidae"
+genus_families[which(genus_families$query == "Anisus"), "family"] <- "Planorbidae"
+genus_families[which(genus_families$query %in% c("Pilaria", "Paradelphomyia", "Ormosia", "Molophilus", "Limonia", "Limnophila", "Hexatoma", "Antocha", "Gnophomyia", "Austrolimnophila", "Cheilotrichia", "Erioptera", "Helius", "Gonomyia")), "family"] <- "Limoniidae"
+genus_families[which(genus_families$query == "Argyroneta"), "family"] <- "Dictynidae"
+genus_families[which(genus_families$query == "Chloroperla"), "family"] <- "Chloroperlidae"
+genus_families[which(genus_families$query %in% c("Dicranota", "Ula", "Pedicia")), "family"] <- "Pediciidae"
+genus_families[which(genus_families$query == "Brachyptera"), "family"] <- "Taeniopterygidae"
+genus_families[which(genus_families$query == "Hygrobia"), "family"] <- "Hygrobiidae"
+genus_families[which(genus_families$query == "Phalacrocera"), "family"] <- "Cylindrotomidae"
+genus_families[which(genus_families$query == "Trocheta"), "family"] <- "Erpobellidae"
+genus_families[which(genus_families$query == "Zonitoides"), "family"] <- "Gastrodontidae"
+genus_families[which(genus_families$query == "Cordylophora"), "family"] <- "Cordylophoridae"
+
+# clean genus level
+TREAM[which(TREAM$genus %in% c("Anax/Hemianax", "Annitella/Chaetopteryx", "Chelifera/Hemerodromia", "Coleoptera", "Habroleptoides/Paraleptophlebia", "Orthocladiini")) , "genus"] <- NA
+TREAM[which(TREAM$genus == "Atherix/Ibisia"), "genus"] <- "Atherix"
+TREAM[which(TREAM$genus == "Bezzia-Gr."), "genus"] <- "Bezzia"
+TREAM[which(TREAM$genus == "Chironomus (Chironomus)"), "genus"] <- "Chironomus"
+TREAM[which(TREAM$genus == "Dicranota (Dicranota)"), "genus"] <- "Dicranota"
+TREAM[which(TREAM$genus == "Polypedilum (Polypedilum)"), "genus"] <- "Polypedilum"
+TREAM[which(TREAM$genus == "Tipula (Yamatotipula)"), "genus"] <- "Tipula"
+TREAM[which(TREAM$genus == "Vejdovskiella"), "genus"] <- "Vejdovskyella"
+TREAM[which(TREAM$genus %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)")), "genus"] <- "Simulium"
+
+# These three entries can not confidently be linked to one family, either because the genus is from a different family, a synonym or doesn't even exist
+TREAM[which(TREAM$genus %in% c("Amphimelania", "Crangonyx/Niphargus", "Holostomis")),]
+
+# merge data sets and check if the families are different
+test2 <- merge(TREAM, genus_families, by.x = "genus", by.y = "query")
+
+test3 <- test2[which(test2$Family != test2$family),]
+test3 <- test3[,c(1,10:12,16)]
+test3 <- distinct(test3)
+
+#check if the correcting worked
+
 # clean the family level
 TREAM[which(TREAM$Family == "Enchytraeidae\xa0"), "Family"] <- "Enchytraeidae"
 TREAM[which(TREAM$Family == "Naididae (formerly Tubificidae)"), "Family"] <- "Naididae"
