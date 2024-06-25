@@ -187,9 +187,7 @@ ggplot(data=no_years_studysites, aes(x = reorder(site_id, per_cov_years), y = pe
 # place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
 
-# add date to the data set
-TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
-TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+
 
 # remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
 TREAM <- TREAM[!is.na(TREAM$date),]
@@ -200,7 +198,7 @@ TREAM_list <- split(TREAM, TREAM$site_id)
 TREAM_long <- lapply(TREAM_list, function(x){
   # obtain the single dates per study site
   df_long <- as.data.frame(sort(unique(x$date)));
-  names(df_long) <- c("Date");
+  names(df_long) <- c("date");
   # obtain the sampled species per study site
   species <- na.exclude(unique(x$taxon));
   #add a column for every single species that was sampled
@@ -222,6 +220,9 @@ TREAM_long <- lapply(TREAM_list, function(x){
   return(df_long)
 })
 
+#save(TREAM_long, file = "data/TREAM_long.Rdata")
+load("data/TREAM_long.Rdata")
+
 #Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
 sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
 sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
@@ -231,15 +232,12 @@ TREAM_long <- TREAM_long[sites_wo_species$site_id]
 # elongate data frames tomatch the TREAM data set
 TREAM_long2 <- lapply(TREAM_long, function(x){
   if(ncol(x) > 1){
-    x <- x %>% pivot_longer(!Date, names_to = "taxon", values_to = "abundances") %>% filter(., abundances == 0);
+    x <- x %>% pivot_longer(!date, names_to = "taxon", values_to = "abundance") %>% filter(., abundance == 0);
     x <- as.data.frame(x)};
   return(x)
 })
 
 TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
 
-TREAM$site_id <- as.character(TREAM$site_id)
-test <- bind_rows(TREAM, TREAM_long2)
+TREAM_zeros <- bind_rows(TREAM, TREAM_long2)
 
-
-# next goal: join the single data sets with the long TREAM data set by joining them based on the columns date and site_id
