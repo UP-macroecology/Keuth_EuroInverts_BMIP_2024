@@ -11,11 +11,18 @@ library(tidyverse)
 library(tibble)
 
 # load in data
-TREAM <- read.csv("data/TREAM/TREAM_allTaxa.csv")
+TREAM <- read.csv("data/TREAM/TREAM_allTaxa.csv", na.strings=c("", "NA"))
 
 # correct object classes of some columns
 TREAM$site_id <- as.character(TREAM$site_id)
 TREAM$month <- as.integer(TREAM$month) # entries of month of Italy is set to NA, as they specified the month as 6 o 8
+
+# fix taxonID column
+#sort(unique(TREAM$taxon_id), decreasing = T)
+#in the taxon ID four taxon groups are wongly added: Platyhelminthes Gen. sp.; Nemertea Gen. sp.; Mollusca Gen. sp.; Clitellata Gen. sp.
+
+#set them to NA as the additional information is also available in other columns
+TREAM[which(TREAM$taxon_id %in% c("Platyhelminthes Gen. sp.", "Nemertea Gen. sp.", "Mollusca Gen. sp.", "Clitellata Gen. sp.") ), "taxon_id"] <- NA
 
 # add date to the data set
 TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
@@ -256,101 +263,82 @@ genus <- sort(unique(TREAM$genus))
 #   genus_families <- rbind(genus_families, temp)
 # }
 
+# #check NAs
+# genus_families[which(genus_families$query == "Agriotypus"), "family"] <- "Ichneumonidae"
+# genus_families[which(genus_families$query %in% c("Ampullaceana", "Alainites", "Nigrobaetis")), "family"] <- "Baetidae"
+# genus_families[which(genus_families$query == "Anisus"), "family"] <- "Curculionidae"
+# genus_families[which(genus_families$query %in% c("Atrichops", "Atherix/Ibisia")), "family"] <- "Athericidae"
+# genus_families[which(genus_families$query %in% c("Bathyomphalus", "Hippeutis", "Pettancylus", "Planorbarius", "Segmentina")), "family"] <- "Planorbidae"
+# genus_families[which(genus_families$query %in% c("Batracobdelloides", "Hemiclepsis")), "family"] <- "Glossiphoniidae"
+# genus_families[which(genus_families$query %in% c("Bazarella", "Berdeniella", "Clytocerus", "Jungiella", "Peripsychoda", "Pneumia", "Satchelliella", "Tonnoiriella", "Ulomyia")), "family"] <- "Psychodidae"
+# genus_families[which(genus_families$query == "Borysthenia"), "family"] <- "Valvatidae"
+# genus_families[which(genus_families$query %in% c("Brachytron", "Anax/Hemianax")), "family"] <- "Aeshnidae"
+# genus_families[which(genus_families$query %in% c("Branchiura", "Vejdovskiella")), "family"] <- "Naididae"
+# genus_families[which(genus_families$query == "Cataclysta"), "family"] <- "Crambidae"
+# genus_families[which(genus_families$query %in% c("Ceriagrion", "Erythromma", "Pyrrhosoma", "Cercion")), "family"] <- "Coenagrionidae"
+# genus_families[which(genus_families$query %in% c("Chalcolestes", "Sympecma")), "family"] <- "Lestidae"
+# genus_families[which(genus_families$query == "Chelicorophium"), "family"] <- "Corophiidae"
+# genus_families[which(genus_families$query %in% c("Cyphon", "Hydrocyphon", "Odeles")), "family"] <- "Scirtidae"
+# genus_families[which(genus_families$query %in% c("Dacnogenia", "Electrogena", "Kageronia")), "family"] <- "Heptageniidae"
+# genus_families[which(genus_families$query %in% c("Dicranomyia", "Dicranophragma", "Discobola", "Eloeophila", "Euphylidorea", "Neolimnomyia", "Phylidorea", "Rhypholophus", "Scleroprocta", "Eutonia", 
+#                                                  "Neolimnomyia (Brachylimnophila)", "Neolimnomyia (Neolimnomyia)")), "family"] <- "Limoniidae"
+# genus_families[which(genus_families$query %in% c("Dictyogenus", "Guadalgenus", "Hemimelaena", "Perlodes")), "family"] <- "Perlodidae"
+# genus_families[which(genus_families$query == "Dikerogammarus"), "family"] <- "Gammaridae"
+# genus_families[which(genus_families$query == "Esperiana"), "family"] <- "Melanopsidae"
+# genus_families[which(genus_families$query %in% c("Euglesa", "Odhneripisidium", "Sphaerium")), "family"] <- "Sphaeriidae"
+# genus_families[which(genus_families$query %in% c("Habroleptoides", "Habroleptoides/Paraleptophlebia")), "family"] <- "Leptophlebiidae"
+# genus_families[which(genus_families$query %in% c("Isoptena", "Siphonoperla")), "family"] <- "Chloroperlidae"
+# genus_families[which(genus_families$query == "Italobdella"), "family"] <- "Piscicolidae"
+# genus_families[which(genus_families$query %in% c("Kloosia", "Lipiniella", "Chironomus (Chironomus)", "Micropsectra/Tanytarsus", "Orthocladiini", "Polypedilum (Polypedilum)")), "family"] <- "Chironomidae"
+# genus_families[which(genus_families$query == "Liponeura"), "family"] <- "Blephariceridae"
+# genus_families[which(genus_families$query == "Marstoniopsis"), "family"] <- "Amnicolidae"
+# genus_families[which(genus_families$query == "Metreletus"), "family"] <- "Ameletidae"
+# genus_families[which(genus_families$query %in% c("Micropterna", "Annitella/Chaetopteryx")), "family"] <- "Limnephilidae"
+# genus_families[which(genus_families$query %in% c("Myxas", "Omphiscola", "Peregriana")), "family"] <- "Lymnaeidae"
+# genus_families[which(genus_families$query == "Nemurella"), "family"] <- "Nemouridae"
+# genus_families[which(genus_families$query == "Niphargus"), "family"] <- "Niphargidae"
+# genus_families[which(genus_families$query %in% c("Obesogammarus", "Pontogammarus")), "family"] <- "Pontogammaridae"
+# genus_families[which(genus_families$query == "Oligoneuriella"), "family"] <- "Oligoneuriidae"
+# genus_families[which(genus_families$query == "Onychogomphus"), "family"] <- "Gomphidae"
+# genus_families[which(genus_families$query == "Orthetrum"), "family"] <- "Libellulidae"
+# genus_families[which(genus_families$query == "Osmylus"), "family"] <- "Osmylidae"
+# genus_families[which(genus_families$query == "Palingenia"), "family"] <- "Palingeniidae"
+# genus_families[which(genus_families$query == "Platycnemis"), "family"] <- "Platycnemididae"
+# genus_families[which(genus_families$query == "Pomatinus"), "family"] <- "Dryopidae"
+# genus_families[which(genus_families$query == "Rhabdiopteryx"), "family"] <- "Taeniopterygidae"
+# genus_families[which(genus_families$query == "Thyas"), "family"] <- "Erebidae"
+# genus_families[which(genus_families$query == "Torleya"), "family"] <- "Ephemerellidae"
+# genus_families[which(genus_families$query == "Tricyphona"), "family"] <- "Pediciidae"
+# genus_families[which(genus_families$query == "Tyrrhenoleuctra"), "family"] <- "Leuctridae"
+# genus_families[which(genus_families$query == "Velia"), "family"] <- "Veliidae"
+# genus_families[which(genus_families$query == "Bezzia-Gr."), "family"] <- "Ceratopogonidae"
+# genus_families[which(genus_families$query == "Chelifera/Hemerodromia"), "family"] <- "Empididae"
+# genus_families[which(genus_families$query == "Dicranota (Dicranota)"), "family"] <- "Pediciidae"
+# genus_families[which(genus_families$query == "Rhyacophila (Rhyacophila)"), "family"] <- "Rhyacophilidae"
+# genus_families[which(genus_families$query %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)") ), "family"] <- "Simuliidae"
+# genus_families[which(genus_families$query == "Tipula (Yamatotipula)"), "family"] <- "Tipulidae"
+# 
+# # clean wrongly corrected family names
+# genus_families[which(genus_families$query == "Ampullaceana"), "family"] <- "Lymnaeidae"
+# genus_families[which(genus_families$query == "Anisus"), "family"] <- "Planorbidae"
+# genus_families[which(genus_families$query %in% c("Pseudolimnophila", "Lipsothrix", "Pilaria", "Paradelphomyia", "Ormosia", "Molophilus", "Limonia", "Limnophila", "Hexatoma", "Antocha", "Gnophomyia", "Austrolimnophila", "Cheilotrichia", "Erioptera", "Helius", "Gonomyia")), "family"] <- "Limoniidae"
+# genus_families[which(genus_families$query == "Argyroneta"), "family"] <- "Dictynidae"
+# genus_families[which(genus_families$query == "Chloroperla"), "family"] <- "Chloroperlidae"
+# genus_families[which(genus_families$query %in% c("Dicranota", "Ula", "Pedicia")), "family"] <- "Pediciidae"
+# genus_families[which(genus_families$query == "Brachyptera"), "family"] <- "Taeniopterygidae"
+# genus_families[which(genus_families$query == "Hygrobia"), "family"] <- "Hygrobiidae"
+# genus_families[which(genus_families$query == "Phalacrocera"), "family"] <- "Cylindrotomidae"
+# genus_families[which(genus_families$query == "Trocheta"), "family"] <- "Erpobdellidae"
+# genus_families[which(genus_families$query == "Zonitoides"), "family"] <- "Gastrodontidae"
+# genus_families[which(genus_families$query == "Cordylophora"), "family"] <- "Cordylophoridae"
+# 
+
 # save data set
-#save(genus_families, file = "data/genus_families_TREAM.Rdata")
+# save(genus_families, file = "data/genus_families_TREAM.Rdata")
 load("data/genus_families_TREAM.Rdata")
-
-#check NAs
-genus_families[which(genus_families$query == "Agriotypus"), "family"] <- "Ichneumonidae"
-genus_families[which(genus_families$query %in% c("Ampullaceana", "Alainites", "Nigrobaetis")), "family"] <- "Baetidae"
-genus_families[which(genus_families$query == "Anisus"), "family"] <- "Curculionidae"
-genus_families[which(genus_families$query %in% c("Atrichops", "Atherix/Ibisia")), "family"] <- "Athericidae"
-genus_families[which(genus_families$query %in% c("Bathyomphalus", "Hippeutis", "Pettancylus", "Planorbarius", "Segmentina")), "family"] <- "Planorbidae"
-genus_families[which(genus_families$query %in% c("Batracobdelloides", "Hemiclepsis")), "family"] <- "Glossiphoniidae"
-genus_families[which(genus_families$query %in% c("Bazarella", "Berdeniella", "Clytocerus", "Jungiella", "Peripsychoda", "Pneumia", "Satchelliella", "Tonnoiriella", "Ulomyia")), "family"] <- "Psychodidae"
-genus_families[which(genus_families$query == "Borysthenia"), "family"] <- "Valvatidae"
-genus_families[which(genus_families$query %in% c("Brachytron", "Anax/Hemianax")), "family"] <- "Aeshnidae"
-genus_families[which(genus_families$query %in% c("Branchiura", "Vejdovskiella")), "family"] <- "Naididae"
-genus_families[which(genus_families$query == "Cataclysta"), "family"] <- "Crambidae"
-genus_families[which(genus_families$query %in% c("Ceriagrion", "Erythromma", "Pyrrhosoma", "Cercion")), "family"] <- "Coenagrionidae"
-genus_families[which(genus_families$query %in% c("Chalcolestes", "Sympecma")), "family"] <- "Lestidae"
-genus_families[which(genus_families$query == "Chelicorophium"), "family"] <- "Corophiidae"
-genus_families[which(genus_families$query %in% c("Cyphon", "Hydrocyphon", "Odeles")), "family"] <- "Scirtidae"
-genus_families[which(genus_families$query %in% c("Dacnogenia", "Electrogena", "Kageronia")), "family"] <- "Heptageniidae"
-genus_families[which(genus_families$query %in% c("Dicranomyia", "Dicranophragma", "Discobola", "Eloeophila", "Euphylidorea", "Neolimnomyia", "Phylidorea", "Rhypholophus", "Scleroprocta", "Eutonia", 
-                                                 "Neolimnomyia (Brachylimnophila)", "Neolimnomyia (Neolimnomyia)")), "family"] <- "Limoniidae"
-genus_families[which(genus_families$query %in% c("Dictyogenus", "Guadalgenus", "Hemimelaena", "Perlodes")), "family"] <- "Perlodidae"
-genus_families[which(genus_families$query == "Dikerogammarus"), "family"] <- "Gammaridae"
-genus_families[which(genus_families$query == "Esperiana"), "family"] <- "Melanopsidae"
-genus_families[which(genus_families$query %in% c("Euglesa", "Odhneripisidium", "Sphaerium")), "family"] <- "Sphaeriidae"
-genus_families[which(genus_families$query %in% c("Habroleptoides", "Habroleptoides/Paraleptophlebia")), "family"] <- "Leptophlebiidae"
-genus_families[which(genus_families$query %in% c("Isoptena", "Siphonoperla")), "family"] <- "Chloroperlidae"
-genus_families[which(genus_families$query == "Italobdella"), "family"] <- "Piscicolidae"
-genus_families[which(genus_families$query %in% c("Kloosia", "Lipiniella", "Chironomus (Chironomus)", "Micropsectra/Tanytarsus", "Orthocladiini", "Polypedilum (Polypedilum)")), "family"] <- "Chironomidae"
-genus_families[which(genus_families$query == "Liponeura"), "family"] <- "Blephariceridae"
-genus_families[which(genus_families$query == "Marstoniopsis"), "family"] <- "Amnicolidae"
-genus_families[which(genus_families$query == "Metreletus"), "family"] <- "Ameletidae"
-genus_families[which(genus_families$query %in% c("Micropterna", "Annitella/Chaetopteryx")), "family"] <- "Limnephilidae"
-genus_families[which(genus_families$query %in% c("Myxas", "Omphiscola", "Peregriana")), "family"] <- "Lymnaeidae"
-genus_families[which(genus_families$query == "Nemurella"), "family"] <- "Nemouridae"
-genus_families[which(genus_families$query == "Niphargus"), "family"] <- "Niphargidae"
-genus_families[which(genus_families$query %in% c("Obesogammarus", "Pontogammarus")), "family"] <- "Pontogammaridae"
-genus_families[which(genus_families$query == "Oligoneuriella"), "family"] <- "Oligoneuriidae"
-genus_families[which(genus_families$query == "Onychogomphus"), "family"] <- "Gomphidae"
-genus_families[which(genus_families$query == "Orthetrum"), "family"] <- "Libellulidae"
-genus_families[which(genus_families$query == "Osmylus"), "family"] <- "Osmylidae"
-genus_families[which(genus_families$query == "Palingenia"), "family"] <- "Palingeniidae"
-genus_families[which(genus_families$query == "Platycnemis"), "family"] <- "Platycnemididae"
-genus_families[which(genus_families$query == "Pomatinus"), "family"] <- "Dryopidae"
-genus_families[which(genus_families$query == "Rhabdiopteryx"), "family"] <- "Taeniopterygidae"
-genus_families[which(genus_families$query == "Thyas"), "family"] <- "Erebidae"
-genus_families[which(genus_families$query == "Torleya"), "family"] <- "Ephemerellidae"
-genus_families[which(genus_families$query == "Tricyphona"), "family"] <- "Pediciidae"
-genus_families[which(genus_families$query == "Tyrrhenoleuctra"), "family"] <- "Leuctridae"
-genus_families[which(genus_families$query == "Velia"), "family"] <- "Veliidae"
-genus_families[which(genus_families$query == "Bezzia-Gr."), "family"] <- "Ceratopogonidae"
-genus_families[which(genus_families$query == "Chelifera/Hemerodromia"), "family"] <- "Empididae"
-genus_families[which(genus_families$query == "Dicranota (Dicranota)"), "family"] <- "Pediciidae"
-genus_families[which(genus_families$query == "Rhyacophila (Rhyacophila)"), "family"] <- "Rhyacophilidae"
-genus_families[which(genus_families$query %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)") ), "family"] <- "Simuliidae"
-genus_families[which(genus_families$query == "Tipula (Yamatotipula)"), "family"] <- "Tipulidae"
-
-# clean wrongly corrected family names
-genus_families[which(genus_families$query == "Ampullaceana"), "family"] <- "Lymnaeidae"
-genus_families[which(genus_families$query == "Anisus"), "family"] <- "Planorbidae"
-genus_families[which(genus_families$query %in% c("Pilaria", "Paradelphomyia", "Ormosia", "Molophilus", "Limonia", "Limnophila", "Hexatoma", "Antocha", "Gnophomyia", "Austrolimnophila", "Cheilotrichia", "Erioptera", "Helius", "Gonomyia")), "family"] <- "Limoniidae"
-genus_families[which(genus_families$query == "Argyroneta"), "family"] <- "Dictynidae"
-genus_families[which(genus_families$query == "Chloroperla"), "family"] <- "Chloroperlidae"
-genus_families[which(genus_families$query %in% c("Dicranota", "Ula", "Pedicia")), "family"] <- "Pediciidae"
-genus_families[which(genus_families$query == "Brachyptera"), "family"] <- "Taeniopterygidae"
-genus_families[which(genus_families$query == "Hygrobia"), "family"] <- "Hygrobiidae"
-genus_families[which(genus_families$query == "Phalacrocera"), "family"] <- "Cylindrotomidae"
-genus_families[which(genus_families$query == "Trocheta"), "family"] <- "Erpobellidae"
-genus_families[which(genus_families$query == "Zonitoides"), "family"] <- "Gastrodontidae"
-genus_families[which(genus_families$query == "Cordylophora"), "family"] <- "Cordylophoridae"
-
-# clean genus level
-TREAM[which(TREAM$genus %in% c("Anax/Hemianax", "Annitella/Chaetopteryx", "Chelifera/Hemerodromia", "Coleoptera", "Habroleptoides/Paraleptophlebia", "Orthocladiini")) , "genus"] <- NA
-TREAM[which(TREAM$genus == "Atherix/Ibisia"), "genus"] <- "Atherix"
-TREAM[which(TREAM$genus == "Bezzia-Gr."), "genus"] <- "Bezzia"
-TREAM[which(TREAM$genus == "Chironomus (Chironomus)"), "genus"] <- "Chironomus"
-TREAM[which(TREAM$genus == "Dicranota (Dicranota)"), "genus"] <- "Dicranota"
-TREAM[which(TREAM$genus == "Polypedilum (Polypedilum)"), "genus"] <- "Polypedilum"
-TREAM[which(TREAM$genus == "Tipula (Yamatotipula)"), "genus"] <- "Tipula"
-TREAM[which(TREAM$genus == "Vejdovskiella"), "genus"] <- "Vejdovskyella"
-TREAM[which(TREAM$genus %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)")), "genus"] <- "Simulium"
 
 # These three entries can not confidently be linked to one family, either because the genus is from a different family, a synonym or doesn't even exist
 TREAM[which(TREAM$genus %in% c("Amphimelania", "Crangonyx/Niphargus", "Holostomis")),]
-
-# merge data sets and check if the families are different
-test2 <- merge(TREAM, genus_families, by.x = "genus", by.y = "query")
-
-test3 <- test2[which(test2$Family != test2$family),]
-test3 <- test3[,c(1,10:12,16)]
-test3 <- distinct(test3)
-
-#check if the correcting worked
 
 # clean the family level
 TREAM[which(TREAM$Family == "Enchytraeidae\xa0"), "Family"] <- "Enchytraeidae"
@@ -366,32 +354,63 @@ TREAM[which(TREAM$Family == "Tubificidae"), "Family"] <- "Naididae"
 TREAM[which(TREAM$Family == "Clavidae"), "Family"] <- "Cordylophoridae"
 TREAM[which(TREAM$Family == "Nabididae"), "Family"] <- "Naididae"
 
+# merge data sets and check if the families are different
+TREAM <- merge(TREAM, genus_families, by.x = "genus", by.y = "query", all = T)
+
+#replace old family values
+TREAM[which(TREAM$Family != TREAM$family), "Family"] <- TREAM[which(TREAM$Family != TREAM$family), "family"]
+
+# remove additional columns
+TREAM <- TREAM[, -which(names(TREAM) %in% c("db", "family"))]
+
+# clean genus level
+TREAM[which(TREAM$genus %in% c("Anax/Hemianax", "Annitella/Chaetopteryx", "Chelifera/Hemerodromia", "Coleoptera", "Habroleptoides/Paraleptophlebia", "Orthocladiini")) , "genus"] <- NA
+TREAM[which(TREAM$genus == "Atherix/Ibisia"), "genus"] <- "Atherix"
+TREAM[which(TREAM$genus == "Bezzia-Gr."), "genus"] <- "Bezzia"
+TREAM[which(TREAM$genus == "Chironomus (Chironomus)"), "genus"] <- "Chironomus"
+TREAM[which(TREAM$genus == "Dicranota (Dicranota)"), "genus"] <- "Dicranota"
+TREAM[which(TREAM$genus == "Polypedilum (Polypedilum)"), "genus"] <- "Polypedilum"
+TREAM[which(TREAM$genus == "Tipula (Yamatotipula)"), "genus"] <- "Tipula"
+TREAM[which(TREAM$genus == "Vejdovskiella"), "genus"] <- "Vejdovskyella"
+TREAM[which(TREAM$genus %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)")), "genus"] <- "Simulium"
+
+# Obtain order level ------------
 families <- sort(unique(TREAM$Family))
 
 # obtain the order level for every single identification
-families_order <- data.frame()
-for (i in 1:length(families)){
-  temp <- tax_name(families[i], get = "order")
-  families_order <- rbind(families_order, temp)
-}
-
-#check manually the families for which no order could be found
-families_order[which(families_order$query == "Atyidae"), "order"] <- "Decapoda"
-families_order[which(families_order$query == "Cylindrotomidae"), "order"] <- "Diptera"
-families_order[which(families_order$query == "Enchytraeidae"), "order"] <- "Enchytraeida"
-families_order[which(families_order$query == "Limoniidae"), "order"] <- "Diptera"
-families_order[which(families_order$query == "Pediciidae"), "order"] <- "Diptera"
-families_order[which(families_order$query == "Platycnemididae"), "order"] <- "Odonata"
-families_order[which(families_order$query == "Cordylophoridae"), "order"] <- "Anthoathecata"
+# families_order <- data.frame()
+# for (i in 1:length(families)){
+#   temp <- tax_name(families[i], get = "order")
+#   families_order <- rbind(families_order, temp)
+# }
+# 
+# #check manually the families for which no order could be found
+# families_order[which(families_order$query == "Leuctridae/Capniidae"), "order"] <- "Plecoptera"
+# families_order[which(families_order$query == "Platycnemididae"), "order"] <- "Odonata"
+# families_order[which(families_order$query == "Enchytraeidae"), "order"] <- "Enchytraeida"
+# families_order[which(families_order$query %in% c("Cylindrotomidae", "Limoniidae", "Pediciidae")), "order"] <- "Diptera"
+# families_order[which(families_order$query == "Cordylophoridae"), "order"] <- "Anthoathecata"
 
 #save the data set
 #save(families_order, file="data/families_orders_TREAM.Rdata")
 load("data/families_orders_TREAM.Rdata")
 
 # merge both data sets
-TREAM <- merge(TREAM, families_order, by.x = "Family", by.y = "query")
-TREAM <- TREAM[,-14]
-# remove rows with NA
+TREAM <- merge(TREAM, families_order, by.x = "Family", by.y = "query", all = T)
+
+TREAM <- TREAM[, -which(names(TREAM) %in% c("db"))]
+
+#remove an unclear family name
+TREAM[which(TREAM$Family == "Leuctridae/Capniidae"), "Family"] <- NA
+
+# reorder columns in data frame
+TREAM <- TREAM %>% relocate(c(Family, genus), .after = Group) %>% relocate(order, .after = Group)
+
+# rename column
+names(TREAM)[names(TREAM) == "Family"] <- "family"
+names(TREAM)[names(TREAM) == "Group"] <- "group"
+
+# remove rows with NA (almost all cells are empty in this rows)
 TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
 
 # save data set
