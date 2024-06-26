@@ -21,9 +21,6 @@ library(shinyWidgets)
 # Loading the data
 TREAM_raw <- read.csv("data/TREAM_preprocessed.csv")
 
-# Extract only the data at species-level identification
-countries <- unique(TREAM_raw$country)
-
 # Prepare data for map
 world_map <- maps::map("world", plot=FALSE)
 newmap <- getMap(resolution = "low")
@@ -42,7 +39,7 @@ ui <- fluidPage(
       # Slider to select the start Year of the Data
       sliderInput("StartYear", "Select Start Year", 1980, 1990, 1980, step = 1, sep = ""),
       # Slider to select the threshold for the proportion of sampled years per study site
-      sliderInput("ThresholdStudySite", "Set threshold for covered years per country [%]", 0, 100, 0, step = 5, sep = ""),
+      sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site [%]", 0, 100, 0, step = 5, sep = ""),
       # Picker to select the countries the data should include (default is all countries in the data set)
       pickerInput("SelectCountries", "Select countries", choices = sort(unique(TREAM_raw$country)), selected = sort(unique(TREAM_raw$country)), options = list(`actions-box` = TRUE), multiple = T),
       # Picker to select the orders the data should include (default is all orders in the data set)
@@ -75,6 +72,9 @@ server <- function(input, output){
   # subsetting data set based on selected start time and countries
   TREAM_sub <- reactive({subset(TREAM_raw, TREAM_raw$country %in% input$SelectCountries & TREAM_raw$year >= input$StartYear)})
   
+  # Extract only the data at species-level identification
+  countries <- reactive({input$SelectCountries})
+  
   # Obtain percentage of sampled years per study site
   no_years_countries <- reactive({TREAM_sub() %>% group_by(country) %>% summarise(no_years_c = n_distinct(year))})
   no_years_studysites <- reactive({TREAM_sub() %>% group_by(country, site_id) %>% summarise(no_years = n_distinct(year)) %>% full_join(no_years_countries(), by = join_by(country)) %>% 
@@ -88,7 +88,7 @@ server <- function(input, output){
   
   # subset data if only species level identification should be displayed
   TREAM_sl <- reactive({if(input$SpeciesLevelData == T){
-    TREAM_sub2()[which(!is.na(TREAM_sub2()$taxon)),]
+    TREAM_sub2()[which(!is.na(TREAM_sub2()$binomial)),]
   } else {
     TREAM_sub2()
   }
@@ -104,7 +104,7 @@ server <- function(input, output){
   TREAM <- reactive({subset(TREAM_sl(), TREAM_sl()$order %in% input$SelectOrders)})
 
   # Splitting dataframe into a list based on country selection
-  TREAM_list <- reactive({(split(TREAM_raw, TREAM_raw$country))})
+  TREAM_list <- reactive({(split(TREAM_sub(), TREAM_sub()$country))})
 
   # Obtain sampled years per country
   sampling_years_countries <- reactive({lapply(TREAM_list(), function(x){unique(x$year)})})
@@ -113,13 +113,13 @@ server <- function(input, output){
   completeness_timeseries <- reactive({
     dat <- data.frame(Year = c(input$StartYear:2020))
     # add a column for every country
-    for (k in 1:length(countries)){
+    for (k in 1:length(input$SelectCountries)){
       dat$tmp <- NA
-      names(dat)[names(dat) == "tmp"] <- countries[k]
+      names(dat)[names(dat) == "tmp"] <- input$SelectCountries[k]
       # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
       for (i in input$StartYear:2020) {
-        if(i %in% sampling_years_countries()[[countries[k]]] == T){
-          dat[dat$Year == i, countries[k]] <- "Yes"
+        if(i %in% sampling_years_countries()[[input$SelectCountries[k]]] == T){
+          dat[dat$Year == i, input$SelectCountries[k]] <- "Yes"
         }
       }
     }
@@ -169,19 +169,19 @@ server <- function(input, output){
   # create data set which contains specific information for every country
   TREAM_info <- reactive({
     # number of species identified for every country
-    dat <- TREAM_raw %>% group_by(country) %>% summarise(no_species = n_distinct(species))
+    dat <- TREAM_sub() %>% group_by(country) %>% summarise(no_species = n_distinct(species))
     # Calculate proportion of present years and proportion of missing years
     dat$p_years_miss <- NA
     dat$p_years_pres <- NA
-    for (i in 1:length(countries)) {
-      tmp <- subset(completeness_timeseries_long(), completeness_timeseries_long()$country == countries[i])
+    for (i in 1:length(input$SelectCountries)) {
+      tmp <- subset(completeness_timeseries_long(), completeness_timeseries_long()$country == input$SelectCountries[i])
       p_miss <- (mean(is.na(tmp$sampled)) * 100)
-      dat[dat$country == countries[i], "p_years_miss"] <- round(p_miss, 1)
-      dat[dat$country == countries[i], "p_years_pres"] <- round(100 - p_miss,1)
+      dat[dat$country == input$SelectCountries[i], "p_years_miss"] <- round(p_miss, 1)
+      dat[dat$country == input$SelectCountries[i], "p_years_pres"] <- round(100 - p_miss,1)
     }
     #calculate coverage value per country (Coverage represents the completeness of the data set regarding three dimensions: space, time, taxon, 100% = perfect sampling)
     coverage <- lapply(TREAM_list(), function(x){
-      (round(nrow(x)/(length(unique(x$taxon))*length(unique(x$site_id))*length(input$StartYear:2020)),2))
+      (round(nrow(x)/(length(unique(x$binomial))*length(unique(x$site_id))*length(input$StartYear:2020)),2))
       })
     coverage <- as.data.frame(do.call(rbind, coverage))
     coverage <- tibble::rownames_to_column(coverage, "country")
@@ -194,25 +194,25 @@ server <- function(input, output){
   metrics <- reactive({
     tmp <-data.frame(
     TimeCoverage = c(round(length(unique(TREAM()$year))/length(input$StartYear:2020), 4) *100),
-    no_species = c(length(unique(TREAM()$taxon))),
+    no_species = c(length(unique(TREAM()$binomial))),
     Coverage = c(
-        (nrow(TREAM())/(length(unique(TREAM()$taxon))*length(unique(TREAM()$site_id))*length(input$StartYear:2020)))*100)
+        (nrow(TREAM())/(length(unique(TREAM()$binomial))*length(unique(TREAM()$site_id))*length(input$StartYear:2020)))*100)
       )
     colnames(tmp) <- c("Time Coverage [%]", "No. Species", "Coverage [%]")
     tmp
     })
   
   # calculate metrics (proportion of sampled years, coverage of countries) per species level
-  species_counts <- reactive({TREAM() %>% group_by(taxon) %>% count()})
-  species_metrics <- reactive({TREAM() %>% group_by(taxon) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country.y), no_studysites = n_distinct(site_id)) %>%
-      full_join(species_counts(), by = join_by(taxon)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
+  species_counts <- reactive({TREAM() %>% group_by(binomial) %>% count()})
+  species_metrics <- reactive({TREAM() %>% group_by(binomial) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country.y), no_studysites = n_distinct(site_id)) %>%
+      full_join(species_counts(), by = join_by(binomial)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
                                                                   coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
       arrange(desc(coverage))})
   # rename the columns
   species_metrics2 <- reactive({
     tmp <- species_metrics()
-    tmp <- tmp[which(!is.na(tmp$taxon)),]
+    tmp <- tmp[which(!is.na(tmp$binomial)),]
     colnames(tmp) <- c("species", "No. Years", "No. Countries", "No. Studysites", "No. Detections", "Time coverage [%]", "Spatial coverage [%]", "Coverage [%]")
     tmp
   })

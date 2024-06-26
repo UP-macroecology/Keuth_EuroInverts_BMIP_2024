@@ -28,6 +28,9 @@ TREAM[which(TREAM$taxon_id %in% c("Platyhelminthes Gen. sp.", "Nemertea Gen. sp.
 TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
 TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
 
+#remove species appendices
+TREAM$species <- str_remove(TREAM$species, " Lv.")
+TREAM$species <- str_remove(TREAM$species, " Ad.")
 # Create full scientific species name from two columns
 TREAM$binomial <- paste(TREAM$Genus.group, TREAM$species)
 
@@ -40,8 +43,6 @@ TREAM[TREAM$species %in% c("sp.", "Gen. sp."), "binomial"] <- NA
 TREAM[which(TREAM$binomial == " "),] <- NA
 
 #remove species appendices
-TREAM$species <- str_remove(TREAM$species, " Lv.")
-TREAM$species <- str_remove(TREAM$species, " Ad.")
 TREAM$binomial <- str_remove(TREAM$binomial, " Lv.")
 TREAM$binomial <- str_remove(TREAM$binomial, " Ad.")
 TREAM$binomial <- str_remove(TREAM$binomial, " ssp.")

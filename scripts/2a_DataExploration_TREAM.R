@@ -179,15 +179,13 @@ ggplot(data=no_years_studysites, aes(x = reorder(site_id, per_cov_years), y = pe
   geom_bar(stat = "identity")+
   facet_wrap(~ country, scales = "free_x")+
   xlab("Study Site")+
-  ggtitle("Sampled years per study site [%]")+
+  ggtitle("Proportion of sampled years per study site [%]")+
   theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
   ylab("")
 
 
 # place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
-
-
 
 # remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
 TREAM <- TREAM[!is.na(TREAM$date),]
@@ -200,7 +198,7 @@ TREAM_long <- lapply(TREAM_list, function(x){
   df_long <- as.data.frame(sort(unique(x$date)));
   names(df_long) <- c("date");
   # obtain the sampled species per study site
-  species <- na.exclude(unique(x$taxon));
+  species <- na.exclude(unique(x$binomial));
   #add a column for every single species that was sampled
   if(length(species) != 0){
   for (i in 1:length(species)){
@@ -210,9 +208,9 @@ TREAM_long <- lapply(TREAM_list, function(x){
     #add abundance number to the specific cell (species, date combination)
   for (k in 1:length(species)){
     for (i in 1:length(unique(df_long$Date))) {
-      tmp <- x[which(x$taxon == species[k]), ]
-        if(length(x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"]) == 1)
-        df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$Date)[i] & x$taxon == species[k]), "abundance"])
+      tmp <- x[which(x$binomial == species[k]), ]
+        if(length(x[which(x$date == unique(df_long$Date)[i] & x$binomial == species[k]), "abundance"]) == 1)
+        df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$Date)[i] & x$binomial == species[k]), "abundance"])
     }
   };
     # add 0 whenever a specific species was not sampled
@@ -232,12 +230,14 @@ TREAM_long <- TREAM_long[sites_wo_species$site_id]
 # elongate data frames tomatch the TREAM data set
 TREAM_long2 <- lapply(TREAM_long, function(x){
   if(ncol(x) > 1){
-    x <- x %>% pivot_longer(!date, names_to = "taxon", values_to = "abundance") %>% filter(., abundance == 0);
+    x <- x %>% pivot_longer(!date, names_to = "binomial", values_to = "abundance") %>% filter(., abundance == 0);
     x <- as.data.frame(x)};
   return(x)
 })
 
 TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
+
+TREAM$site_id <- as.character(TREAM$site_id)
 
 TREAM_zeros <- bind_rows(TREAM, TREAM_long2)
 
