@@ -13,9 +13,21 @@ The column with the taxonomic information was modified to determine which data p
 
 *Script:* 1a_DataPreprocessing_TREAM.R
 
-In this script the TREAM data set was cleaned. Wrong cell values were removed from different columns and the different taxonomic columns (species, genus and family) were checked for correctness (misspelling or synonyms) and cleaned.  For this the package *taxonize* was used and the species names were first checked using the taxnomic serial number (TSN) and the [Integrated Taxonomic Information System (ITIS)](https://www.itis.gov/). I chose this option since the other functions did not work but produced an error message. All species names that could not be found by the function were manually checked using [GBIF](https://www.gbif.org/). I further extracted higher taxonomic levels (family, order) for each record using the package *taxonize*.
+In this script the TREAM data set was cleaned: Wrong cell values were removed from different columns and the different taxonomic columns (species, genus and family) were checked for correctness (misspelling or synonyms) and cleaned. For this the package *taxonize* was used and the species names were first checked using the taxnomic serial number (TSN) and the [Integrated Taxonomic Information System (ITIS)](https://www.itis.gov/). I chose this option since the other functions did not work but produced an error message. All species names that could not be found by the function were manually checked using [GBIF](https://www.gbif.org/). I further extracted higher taxonomic levels (family, order) for each record using the package *taxonize*. If a higher taxonomic level could not be found by the function it was also checked using [GBIF](https://www.gbif.org/) and [Catalogue of Life](https://www.catalogueoflife.org/). Furthermore, for each record it was determined to which taxonomic level it was determined. If a taxonomic identification was not clear the closest mutual taxonomic level of the options named was chosen. 
 
 ### Data exploration
 *Script:* 2_DataExploration.R
 
-The data set was investigated based on temporal and spatial extent for every country as well as species. The corresponding plots can also be found in the Rmarkdown *Exploration_EuroInv.Rmd/.html*.
+The data set was investigated based on temporal and spatial coverage for every country as well as species. The proportion of identification to the different taxonomic level for every country was also determined. The corresponding plots can also be found in the Rmarkdown *Exploration_EuroInv.Rmd/.html*.
+
+*Script:* 2a_DataExploration_TREAM.R
+
+The data set was investigated focusing on the temporal and spatial coverage for every country. Furthermore, the proportion of identification to the different taxonomic levels for every country was determined and the proportion of sampled years per study site for every country. Additionally, since the data set does not include 0 counts, structural 0 were included in the data set.
+
+*Script:* 4_GlobalRange.R
+
+For this script I downloaded range data for the order *Odonata* from the [IUCN Red List](https://www.iucnredlist.org/resources/spatial-data-download) and tested how many species are included in this data set. 
+
+### ShinyApp
+
+The folder *ShinyApp* contains the script and data required for the 
