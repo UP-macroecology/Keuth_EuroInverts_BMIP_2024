@@ -30,4 +30,4 @@ For this script I downloaded range data for the order *Odonata* from the [IUCN R
 
 ### ShinyApp
 
-The folder *ShinyApp* contains the script and data required for the 
+The folder *ShinyApp* contains the script and data required for the ShinyApp to run. The ShinyApp is supposed to help with finding a good subset of the data set, which has a good spatial and temporal cover for different species. Different criteria can be chosen to subselect the data set.
