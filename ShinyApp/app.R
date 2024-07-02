@@ -89,9 +89,6 @@ server <- function(input, output){
                 options = list(`actions-box` = TRUE), multiple = T)
   })
   
-  # Extract only the data at species-level identification
-  countries <- reactive({input$SelectCountries})
-  
   # subset based on country selection
   TREAM_sub_country <- reactive({subset(TREAM_sub_sitecov(), TREAM_sub_sitecov()$country.y %in% input$SelectCountries)})
   
@@ -116,6 +113,9 @@ server <- function(input, output){
     names(tmp)[names(tmp) == "country.y"] <- "country"
     tmp
     })
+  
+  # Extract countries
+  countries <- reactive({unique(TREAM()$country)})
 
   # Splitting dataframe into a list based on country selection
   TREAM_list <- reactive({(split(TREAM(), TREAM()$country))})
@@ -127,13 +127,13 @@ server <- function(input, output){
   completeness_timeseries <- reactive({
     dat <- data.frame(Year = c(input$StartYear:2020))
     # add a column for every country
-    for (k in 1:length(input$SelectCountries)){
+    for (k in 1:length(countries())){
       dat$tmp <- NA
-      names(dat)[names(dat) == "tmp"] <- input$SelectCountries[k]
+      names(dat)[names(dat) == "tmp"] <- countries()[k]
       # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
       for (i in input$StartYear:2020) {
-        if(i %in% sampling_years_countries()[[input$SelectCountries[k]]] == T){
-          dat[dat$Year == i, input$SelectCountries[k]] <- "Yes"
+        if(i %in% sampling_years_countries()[[countries()[k]]] == T){
+          dat[dat$Year == i, countries()[k]] <- "Yes"
         }
       }
     }
@@ -153,14 +153,14 @@ server <- function(input, output){
   
   # create list of countries for the map (some countries have different spelling in the rworldmap package)
   ddf <- reactive({
-    tmp <- data.frame(country = c(unique(TREAM()$country)))
-    if ("UK" %in% unique(TREAM()$country)) {
+    tmp <- data.frame(country = c(countries()))
+    if ("UK" %in% countries()) {
       tmp <- rbind(tmp, "United Kingdom")
     } 
-    if ("Czech Republic" %in% unique(TREAM()$country)){
+    if ("Czech Republic" %in% countries()){
       tmp <- rbind(tmp, c("Czech Rep."))
     } 
-    if ("Luxemburg" %in% unique(TREAM()$country)){
+    if ("Luxemburg" %in% countries()){
       tmp <- rbind(tmp, "Luxembourg")
     } 
     tmp
