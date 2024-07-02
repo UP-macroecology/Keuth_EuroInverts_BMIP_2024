@@ -153,14 +153,14 @@ server <- function(input, output){
   
   # create list of countries for the map (some countries have different spelling in the rworldmap package)
   ddf <- reactive({
-    tmp <- data.frame(country = c(input$SelectCountries))
-    if ("UK" %in% input$SelectCountries) {
+    tmp <- data.frame(country = c(unique(TREAM()$country)))
+    if ("UK" %in% unique(TREAM()$country)) {
       tmp <- rbind(tmp, "United Kingdom")
     } 
-    if ("CzechRepublic" %in% input$SelectCountries){
-      tmp <- rbind(tmp, "Czech Rep.")
+    if ("Czech Republic" %in% unique(TREAM()$country)){
+      tmp <- rbind(tmp, c("Czech Rep."))
     } 
-    if ("Luxemburg" %in% input$SelectCountries){
+    if ("Luxemburg" %in% unique(TREAM()$country)){
       tmp <- rbind(tmp, "Luxembourg")
     } 
     tmp
