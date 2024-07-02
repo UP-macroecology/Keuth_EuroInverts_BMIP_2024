@@ -41,7 +41,7 @@ ui <- fluidPage(
       # Slider to select the threshold for the proportion of sampled years per study site
       sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site [%]", 0, 100, 0, step = 5, sep = ""),
       # Picker to select the countries the data should include (default is all countries in the data set)
-      pickerInput("SelectCountries", "Select countries", choices = sort(unique(TREAM_raw$country)), selected = sort(unique(TREAM_raw$country)), options = list(`actions-box` = TRUE), multiple = T),
+      uiOutput("SelectCountries_Picker"),
       # Picker to select the orders the data should include (default is all orders in the data set)
       uiOutput("SelectOrders_Picker"),
       # Check box to include only data with identifications on species level
@@ -70,27 +70,36 @@ ui <- fluidPage(
 server <- function(input, output){
   
   # subsetting data set based on selected start time and countries
-  TREAM_sub <- reactive({subset(TREAM_raw, TREAM_raw$country %in% input$SelectCountries & TREAM_raw$year >= input$StartYear)})
+  TREAM_sub_year <- reactive({subset(TREAM_raw, TREAM_raw$year >= input$StartYear)})
+  
+  # Obtain percentage of sampled years per study site
+  no_years_countries <- reactive({TREAM_sub_year() %>% group_by(country) %>% summarise(no_years_c = n_distinct(year))})
+  no_years_studysites <- reactive({TREAM_sub_year() %>% group_by(country, site_id) %>% summarise(no_years = n_distinct(year)) %>% full_join(no_years_countries(), by = join_by(country)) %>% 
+      mutate(per_cov_years = (no_years/no_years_c) * 100, site_id = as.character(site_id))})
+  
+  # merge information with large dataset
+  TREAM_joined <- reactive({TREAM_sub_year() %>% mutate(site_id = as.character(site_id)) %>% full_join(no_years_studysites(), by = join_by(site_id))})
+  
+  # subset based on threshold selections
+  TREAM_sub_sitecov <- reactive({subset(TREAM_joined(), TREAM_joined()$per_cov_years >= input$ThresholdStudySite)})
+  
+  # Picker to select the countries the data should include (default is all countries in the data set)
+  output$SelectCountries_Picker <- renderUI({
+    pickerInput("SelectCountries", "Select countries", choices = sort(unique(TREAM_sub_sitecov()$country.y)), selected = sort(unique(TREAM_sub_sitecov()$country.y)), 
+                options = list(`actions-box` = TRUE), multiple = T)
+  })
   
   # Extract only the data at species-level identification
   countries <- reactive({input$SelectCountries})
   
-  # Obtain percentage of sampled years per study site
-  no_years_countries <- reactive({TREAM_sub() %>% group_by(country) %>% summarise(no_years_c = n_distinct(year))})
-  no_years_studysites <- reactive({TREAM_sub() %>% group_by(country, site_id) %>% summarise(no_years = n_distinct(year)) %>% full_join(no_years_countries(), by = join_by(country)) %>% 
-      mutate(per_cov_years = (no_years/no_years_c) * 100, site_id = as.character(site_id))})
-  
-  # merge information with large dataset
-  TREAM_joined <- reactive({TREAM_sub() %>% mutate(site_id = as.character(site_id)) %>% full_join(no_years_studysites(), by = join_by(site_id))})
-  
-  # subset based on threshold selections
-  TREAM_sub2 <- reactive({subset(TREAM_joined(), TREAM_joined()$per_cov_years >= input$ThresholdStudySite)})
+  # subset based on country selection
+  TREAM_sub_country <- reactive({subset(TREAM_sub_sitecov(), TREAM_sub_sitecov()$country.y %in% input$SelectCountries)})
   
   # subset data if only species level identification should be displayed
   TREAM_sl <- reactive({if(input$SpeciesLevelData == T){
-    TREAM_sub2()[which(!is.na(TREAM_sub2()$binomial)),]
+    TREAM_sub_country()[which(!is.na(TREAM_sub_country()$binomial)),]
   } else {
-    TREAM_sub2()
+    TREAM_sub_country()
   }
   })
   
@@ -100,11 +109,16 @@ server <- function(input, output){
                 options = list(`actions-box` = TRUE), multiple = T)
   })
   
-  # subsetting data set based on order selection
-  TREAM <- reactive({subset(TREAM_sl(), TREAM_sl()$order %in% input$SelectOrders)})
+  # subsetting data set based on order selection and renamed column
+  TREAM <- reactive({
+    tmp <- TREAM_sl()
+    tmp <- subset(tmp, tmp$order %in% input$SelectOrders)
+    names(tmp)[names(tmp) == "country.y"] <- "country"
+    tmp
+    })
 
   # Splitting dataframe into a list based on country selection
-  TREAM_list <- reactive({(split(TREAM_sub(), TREAM_sub()$country))})
+  TREAM_list <- reactive({(split(TREAM(), TREAM()$country))})
 
   # Obtain sampled years per country
   sampling_years_countries <- reactive({lapply(TREAM_list(), function(x){unique(x$year)})})
@@ -169,7 +183,7 @@ server <- function(input, output){
   # create data set which contains specific information for every country
   TREAM_info <- reactive({
     # number of species identified for every country
-    dat <- TREAM_sub() %>% group_by(country) %>% summarise(no_species = n_distinct(species))
+    dat <- TREAM() %>% group_by(country) %>% summarise(no_species = n_distinct(species))
     # Calculate proportion of present years and proportion of missing years
     dat$p_years_miss <- NA
     dat$p_years_pres <- NA
@@ -204,7 +218,7 @@ server <- function(input, output){
   
   # calculate metrics (proportion of sampled years, coverage of countries) per species level
   species_counts <- reactive({TREAM() %>% group_by(binomial) %>% count()})
-  species_metrics <- reactive({TREAM() %>% group_by(binomial) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country.y), no_studysites = n_distinct(site_id)) %>%
+  species_metrics <- reactive({TREAM() %>% group_by(binomial) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
       full_join(species_counts(), by = join_by(binomial)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
                                                                   coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
@@ -257,7 +271,7 @@ server <- function(input, output){
   
   # Plot for sampled years per study site
   output$SiteTimeCoverage <- renderPlot({
-    ggplot(data=no_years_studysites(), aes(x = reorder(site_id, per_cov_years), y = per_cov_years))+
+    ggplot(data=no_years_studysites() %>% filter(per_cov_years >= input$ThresholdStudySite), aes(x = reorder(site_id, per_cov_years), y = per_cov_years))+
       geom_bar(stat = "identity")+
       facet_wrap(~ country, scales = "free_x")+
       xlab("Study Site")+
