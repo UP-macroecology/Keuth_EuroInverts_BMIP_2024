@@ -208,19 +208,16 @@ server <- function(input, output){
   metrics <- reactive({
     nYr <- length(input$StartYear:2020)
     nSite <- length(unique(Euro_Invert_sub()$site_id))
-    nSp <- c(length(unique(Euro_Invert_sub()$species)))
-    nObs <- nrow(Euro_Invert_sub())
+    nSp <- c(length(unique(TREAM()$binomial)))
+    nObs <- nrow(TREAM()) 
     tmp <-data.frame(
-<<<<<<< HEAD
       TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/nYr, 4) *100),
       no_years = nYr,
       no_species = nSp,
       no_Sites = nSite,
       no_Obs = nObs,
       no_Combos = nSp * nSite * nYr,
-      DataCoverage = c(
-          (nObs/(nSp * nSite * nYr)) * 100)
-        )
+      DataCoverage = c((nObs/(nSp * nSite * nYr)) * 100))
     colnames(tmp) <- c("Time Coverage [%]",
                        "No. years",
                        "No. species",
@@ -228,14 +225,6 @@ server <- function(input, output){
                        "No. observations",
                        "No. combos",
                        "Data Coverage [%]")
-=======
-    TimeCoverage = c(round(length(unique(TREAM()$year))/length(input$StartYear:2020), 4) *100),
-    no_species = c(length(unique(TREAM()$binomial))),
-    Coverage = c(
-        (nrow(TREAM())/(length(unique(TREAM()$binomial))*length(unique(TREAM()$site_id))*length(input$StartYear:2020)))*100)
-      )
-    colnames(tmp) <- c("Time Coverage [%]", "No. Species", "Coverage [%]")
->>>>>>> b40e17bd3e63a1f43457482c89dfb6ae56ac12da
     tmp
     })
   
