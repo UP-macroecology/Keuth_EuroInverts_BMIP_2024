@@ -156,13 +156,27 @@ server <- function(input, output){
   
   #calculate metrics (proportion of sampled years, number of species, coverage) for the subset data
   metrics <- reactive({
+    nYr <- length(input$StartYear:2020)
+    nSite <- length(unique(Euro_Invert_sub()$site_id))
+    nSp <- c(length(unique(Euro_Invert_sub()$species)))
+    nObs <- nrow(Euro_Invert_sub())
     tmp <-data.frame(
-    TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/length(input$StartYear:2020), 4) *100),
-    no_species = c(length(unique(Euro_Invert_sub()$species))),
-    Coverage = c(
-        (nrow(Euro_Invert_sub())/(length(unique(Euro_Invert_sub()$species))*length(unique(Euro_Invert_sub()$site_id))*length(input$StartYear:2020)))*100)
-      )
-    colnames(tmp) <- c("Time Coverage [%]", "No. Species", "Coverage [%]")
+      TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/nYr, 4) *100),
+      no_years = nYr,
+      no_species = nSp,
+      no_Sites = nSite,
+      no_Obs = nObs,
+      no_Combos = nSp * nSite * nYr,
+      DataCoverage = c(
+          (nObs/(nSp * nSite * nYr)) * 100)
+        )
+    colnames(tmp) <- c("Time Coverage [%]",
+                       "No. years",
+                       "No. species",
+                       "No. sites",
+                       "No. observations",
+                       "No. combos",
+                       "Data Coverage [%]")
     tmp
     })
   
