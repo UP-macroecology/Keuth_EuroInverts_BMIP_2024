@@ -207,11 +207,11 @@ server <- function(input, output){
   #calculate metrics (proportion of sampled years, number of species, coverage) for the subset data
   metrics <- reactive({
     nYr <- length(input$StartYear:2020)
-    nSite <- length(unique(Euro_Invert_sub()$site_id))
+    nSite <- length(unique(TREAM()$site_id))
     nSp <- c(length(unique(TREAM()$binomial)))
     nObs <- nrow(TREAM()) 
     tmp <-data.frame(
-      TimeCoverage = c(round(length(unique(Euro_Invert_sub()$year))/nYr, 4) *100),
+      TimeCoverage = c(round(length(unique(TREAM()$year))/nYr, 4) *100),
       no_years = nYr,
       no_species = nSp,
       no_Sites = nSite,
