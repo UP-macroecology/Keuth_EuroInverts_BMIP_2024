@@ -1,5 +1,5 @@
 # 1. Preprocessing Data
-# Aim of this script is to combine the single csv files for the different study sites into one large data set
+# Aim of this script is to combine the single csv files for the different study sites into one large data set and clean the taxonomic column of the data set
 
 # Load packages
 library(taxize)
