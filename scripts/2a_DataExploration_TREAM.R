@@ -175,17 +175,18 @@ no_years_studysites <- TREAM %>% group_by(country, site_id) %>% summarise(no_yea
 
 
 # Plot the proportion of sampled years per study sites for each country
-ggplot(data=no_years_studysites, aes(x = reorder(site_id, per_cov_years), y = per_cov_years))+
+ggplot(data=no_years_studysites, aes(x = reorder(site_id, no_years), y = no_years))+
   geom_bar(stat = "identity")+
   facet_wrap(~ country, scales = "free_x")+
   xlab("Study Site")+
-  ggtitle("Proportion of sampled years per study site [%]")+
+  ggtitle("Sampled years per study site")+
   theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
   ylab("")
 
 
 # place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
+TREAM$site_id <- as.character(TREAM$site_id)
 
 # remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
 TREAM <- TREAM[!is.na(TREAM$date),]
@@ -218,9 +219,6 @@ TREAM_long <- lapply(TREAM_list, function(x){
   return(df_long)
 })
 
-#save(TREAM_long, file = "data/TREAM_long.Rdata")
-load("data/TREAM_long.Rdata")
-
 #Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
 sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
 sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
@@ -235,9 +233,23 @@ TREAM_long2 <- lapply(TREAM_long, function(x){
   return(x)
 })
 
+#elongate data set by binding rows
 TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
 
-TREAM$site_id <- as.character(TREAM$site_id)
+#add new columns and correspondent information to it
+TREAM_long2$taxon_level <- "s"
+TREAM_long2[c("genus", "species")] <- str_split_fixed(TREAM_long2$binomial, " ", 2)
+TREAM_long2[c("year", "month", "day")] <- str_split_fixed(TREAM_long2$date, "-", 3)
+TREAM_long2 <- left_join(TREAM_long2, TREAM %>% group_by(country) %>% distinct(site_id), by = "site_id")
+TREAM_long2 <- left_join(TREAM_long2, TREAM %>% group_by(genus) %>% distinct(family, order) %>% na.omit(genus), by = "genus")
+TREAM_long2$group <- NA
+TREAM_long2$taxon_id <- NA
+TREAM_long2$day <- as.numeric(TREAM_long2$day)
+TREAM_long2$month <- as.numeric(TREAM_long2$month)
+TREAM_long2$year <- as.numeric(TREAM_long2$year)
 
+# combine data set
 TREAM_zeros <- bind_rows(TREAM, TREAM_long2)
 
+# save data set
+write.csv(TREAM_zeros, "data/TREAM_zeros.csv", row.names = F)
