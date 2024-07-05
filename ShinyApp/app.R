@@ -46,7 +46,7 @@ ui <- fluidPage(
       # Picker to select the orders the data should include (default is all orders in the data set)
       uiOutput("SelectOrders_Picker"),
       # Check box to include only data with identifications on species level
-      checkboxInput("SpeciesLevelData", "Use only data with identification on species level"),
+      checkboxInput("SpeciesLevelData", "Use only data with identification on species level", value = T),
       # Plot for the sampled years of the different countries
       plotOutput("TimeCoverage"),
       # Plot for the species number for the different countries
@@ -74,7 +74,7 @@ server <- function(input, output){
   TREAM_sub_year <- reactive({subset(TREAM_raw, TREAM_raw$year >= input$StartYear)})
   
   output$SelectThreshold_Slider <- renderUI({
-  sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site", 0, (max(TREAM_sub_year()$year) - min(TREAM_sub_year()$year)), 0, step = 5, sep = "")
+  sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site", 0, (length(input$StartYear:2020)), 0, step = 5, sep = "")
   })
   
   # Obtain percentage of sampled years per study site
@@ -288,7 +288,7 @@ server <- function(input, output){
   
   # Plot for sampled years per study site
   output$SiteTimeCoverage <- renderPlot({
-    ggplot(data=no_years_studysites() %>% filter(no_years >= input$ThresholdStudySite), aes(x = reorder(site_id, no_years), y = no_years))+
+    ggplot(data=no_years_studysites() %>% filter(no_years >= input$ThresholdStudySite) %>% filter (country %in% input$SelectCountries), aes(x = reorder(site_id, no_years), y = no_years))+
       geom_bar(stat = "identity")+
       facet_wrap(~ country, scales = "free_x")+
       xlab("Study Site")+
