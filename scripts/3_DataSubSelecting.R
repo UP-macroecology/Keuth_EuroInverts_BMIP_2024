@@ -271,3 +271,8 @@ dat <- tibble::rownames_to_column(dat, "country")
 colnames(dat) <- c("country", "no_species")
 
 test <- subset(Euro_Invert, Euro_Invert$species == "Spongilla lacustris")
+
+
+TREAM <- read.csv("data/TREAM_zeros.csv")
+TREAM_Portugal <- subset(TREAM_zeros, TREAM_zeros$country == "Portugal")
+TREAM_Portugal <- TREAM_Portugal[which(!is.na(TREAM_Portugal$binomial)),]
