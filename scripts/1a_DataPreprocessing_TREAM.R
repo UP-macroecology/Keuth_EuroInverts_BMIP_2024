@@ -25,8 +25,11 @@ TREAM$month <- as.integer(TREAM$month) # entries of month of Italy is set to NA,
 TREAM[which(TREAM$taxon_id %in% c("Platyhelminthes Gen. sp.", "Nemertea Gen. sp.", "Mollusca Gen. sp.", "Clitellata Gen. sp.") ), "taxon_id"] <- NA
 
 # add date to the data set
-TREAM$date <- paste(TREAM$year, TREAM$month,TREAM$day,  sep = "-")
-TREAM$date <- as.Date(TREAM$date, format = "%Y-%m-%d")
+TREAM$date <- paste(TREAM$year, TREAM$month, TREAM$day,  sep = "-")
+
+# modify date column for Finland and Italy as both of them do not provide a day but only a month
+TREAM[which(is.na(TREAM$month)), "date"] <- TREAM[which(is.na(TREAM$month)), "year"]
+TREAM[which(TREAM$country == "Finland"), "date"] <- paste(TREAM[which(TREAM$country == "Finland"), "year"], TREAM[which(TREAM$country == "Finland"), "month"],  sep = "-")
 
 #remove species appendices
 TREAM$species <- str_remove(TREAM$species, " Lv.")
