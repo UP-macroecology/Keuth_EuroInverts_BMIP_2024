@@ -74,7 +74,7 @@ server <- function(input, output){
   TREAM_sub_year <- reactive({subset(TREAM_raw, TREAM_raw$year >= input$StartYear)})
   
   output$SelectThreshold_Slider <- renderUI({
-  sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site", 0, (length(input$StartYear:2020)), 0, step = 5, sep = "")
+  sliderInput("ThresholdStudySite", "Set threshold for sampled years per study site", 0, (length(input$StartYear:2020)), 0, step = 1, sep = "")
   })
   
   # Obtain percentage of sampled years per study site
