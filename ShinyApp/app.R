@@ -235,10 +235,11 @@ server <- function(input, output){
   
   # calculate metrics (proportion of sampled years, coverage of countries) per species level
   species_counts <- reactive({TREAM() %>% group_by(binomial) %>% count()})
-  species_metrics <- reactive({TREAM() %>% group_by(binomial) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites = n_distinct(site_id)) %>%
+  no_studysites <- reactive(({length(unique(TREAM()$site_id))}))
+  species_metrics <- reactive({TREAM() %>% group_by(binomial) %>% summarise(no_years = n_distinct(year), no_countries = n_distinct(country), no_studysites1 = n_distinct(site_id)) %>%
       full_join(species_counts(), by = join_by(binomial)) %>% mutate(time_cov = (no_years/(length(input$StartYear:2020)))*100,
                                                                   spatial_cov = (no_countries/(length(input$SelectCountries)))*100,
-                                                                  coverage = (n/((length(input$StartYear:2020)) * no_studysites))*100) %>%
+                                                                  coverage = (n/((length(input$StartYear:2020)) * no_studysites()))*100) %>%
       arrange(desc(coverage))})
   # rename the columns
   species_metrics2 <- reactive({
