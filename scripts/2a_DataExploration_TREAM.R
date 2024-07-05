@@ -208,10 +208,10 @@ TREAM_long <- lapply(TREAM_list, function(x){
   };
     #add abundance number to the specific cell (species, date combination)
   for (k in 1:length(species)){
-    for (i in 1:length(unique(df_long$Date))) {
+    for (i in 1:length(unique(df_long$date))) {
       tmp <- x[which(x$binomial == species[k]), ]
-        if(length(x[which(x$date == unique(df_long$Date)[i] & x$binomial == species[k]), "abundance"]) == 1)
-        df_long[df_long$Date == unique(df_long$Date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$Date)[i] & x$binomial == species[k]), "abundance"])
+        if(length(x[which(x$date == unique(df_long$date)[i] & x$binomial == species[k]), "abundance"]) == 1)
+        df_long[df_long$date == unique(df_long$date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$date)[i] & x$binomial == species[k]), "abundance"])
     }
   };
     # add 0 whenever a specific species was not sampled
