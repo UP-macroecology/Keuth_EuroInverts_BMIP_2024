@@ -235,13 +235,6 @@ for (i in 1:length(row.index2)) {
 # remove additional columns
 TREAM <- TREAM[, -which(names(TREAM) %in% c("Genus_corrected", "Species_corrected"))]
 
-# add column which specifies to which level the individuum was identified
-TREAM$taxon_level <- NA
-TREAM[which(!is.na(TREAM$binomial)), "taxon_level"] <- "s"
-TREAM[which(TREAM$species == "sp."), "taxon_level"] <- "g"
-TREAM[grep("/",TREAM[,"species"]), "taxon_level"] <- "g"
-TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
-
 # back transform data set to data frame
 TREAM <- as.data.frame(TREAM)
 
@@ -417,5 +410,101 @@ names(TREAM)[names(TREAM) == "Group"] <- "group"
 # remove rows with NA (almost all cells are empty in this rows)
 TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
 
+# remove a mistake that happened in the binomial column for some reason
+TREAM[which(TREAM$binomial == "NA NA"), "binomial"] <- NA
+
+# add column which specifies to which level the individuum was identified
+TREAM$taxon_level <- NA
+TREAM[which(!is.na(TREAM$binomial)), "taxon_level"] <- "s"
+TREAM[setdiff(which(!is.na(TREAM$genus)), which(!is.na(TREAM$binomial))), "taxon_level"] <- "g"
+TREAM[setdiff(which(!is.na(TREAM$family)), which(!is.na(TREAM$genus))), "taxon_level"] <- "f"
+TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
+
+#include a column which contains the finest level of taxon classification
+TREAM$taxon_name <- TREAM$binomial
+
+for(i in 1:nrow(TREAM)){
+  if(is.na(TREAM$order[i])){
+  TREAM$taxon_name[i] <- TREAM$group[i]
+  } else if(is.na(TREAM$family[i])){
+    TREAM$taxon_name[i] <- TREAM$order[i]
+  } else if(is.na(TREAM$genus[i])){
+    TREAM$taxon_name[i] <- TREAM$family[i]
+  } else if(is.na(TREAM$species[i])){
+    TREAM$taxon_name[i] <- TREAM$genus[i]
+  }
+}
+
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
+
+# Code from here is not controlled and need to be officially be included
+# place structural 0 in the data set ------------
+TREAM <- read.csv("data/TREAM_preprocessed.csv")
+#TREAM$site_id <- as.character(TREAM$site_id)
+
+# remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
+TREAM <- TREAM[!is.na(TREAM$date),]
+
+# create a list for the single study sites
+TREAM_list <- split(TREAM, TREAM$site_id)
+
+TREAM_long <- lapply(TREAM_list, function(x){
+  # obtain the single dates per study site
+  df_long <- as.data.frame(sort(unique(x$date)));
+  names(df_long) <- c("date");
+  # obtain the sampled species per study site
+  species <- na.exclude(unique(x$binomial));
+  #add a column for every single species that was sampled
+  if(length(species) != 0){
+    for (i in 1:length(species)){
+      df_long$tmp <- NA
+      names(df_long)[names(df_long) == "tmp"] <- species[i]
+    };
+    #add abundance number to the specific cell (species, date combination)
+    for (k in 1:length(species)){
+      for (i in 1:length(unique(df_long$date))) {
+        tmp <- x[which(x$binomial == species[k]), ]
+        if(length(x[which(x$date == unique(df_long$date)[i] & x$binomial == species[k]), "abundance"]) == 1)
+          df_long[df_long$date == unique(df_long$date)[i], species[k]] <- sum(x[which(x$date == unique(df_long$date)[i] & x$binomial == species[k]), "abundance"])
+      }
+    };
+    # add 0 whenever a specific species was not sampled
+    df_long[is.na(df_long)] <- 0};
+  return(df_long)
+})
+
+#Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
+sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
+sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
+sites_wo_species <- sites_wo_species %>% tibble::rownames_to_column(., "site_id") %>% filter(., V1 > 1) 
+TREAM_long <- TREAM_long[sites_wo_species$site_id]
+
+# elongate data frames tomatch the TREAM data set
+TREAM_long2 <- lapply(TREAM_long, function(x){
+  if(ncol(x) > 1){
+    x <- x %>% pivot_longer(!date, names_to = "binomial", values_to = "abundance") %>% filter(., abundance == 0);
+    x <- as.data.frame(x)};
+  return(x)
+})
+
+#elongate data set by binding rows
+TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
+
+#add new columns and correspondent information to it
+TREAM_long2$taxon_level <- "s"
+TREAM_long2[c("genus", "species")] <- str_split_fixed(TREAM_long2$binomial, " ", 2)
+TREAM_long2[c("year", "month", "day")] <- str_split_fixed(TREAM_long2$date, "-", 3)
+TREAM_long2 <- left_join(TREAM_long2, TREAM %>% group_by(country) %>% distinct(site_id), by = "site_id")
+TREAM_long2 <- left_join(TREAM_long2, TREAM %>% group_by(genus) %>% distinct(family, order) %>% na.omit(genus), by = "genus")
+TREAM_long2$group <- NA
+TREAM_long2$taxon_id <- NA
+TREAM_long2$day <- as.numeric(TREAM_long2$day)
+TREAM_long2$month <- as.numeric(TREAM_long2$month)
+TREAM_long2$year <- as.numeric(TREAM_long2$year)
+
+# combine data set
+TREAM_zeros <- bind_rows(TREAM, TREAM_long2)
+
+# save data set
+write.csv(TREAM_zeros, "data/TREAM_zeros.csv", row.names = F)
