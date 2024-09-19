@@ -13,6 +13,7 @@
 library(dplyr)
 library(adehabitatHR)
 library(sp)
+library(rgbif)
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
@@ -36,8 +37,8 @@ TREAM <- TREAM %>% full_join(no_years_studysites, by = join_by(site_id))
 TREAM_sub <- subset(TREAM, TREAM$years_studysite >= 20)
 
 # Extract information about number of species, genus, family
-length(unique(TREAM_sub$binomial)) #763
-length(unique(TREAM_sub$site_id)) #224
+length(unique(TREAM_sub$binomial)) #762
+length(unique(TREAM_sub$site_id)) #202
 
 #3. Calculate the number of sites on which each of these taxa is found
 species_info <- TREAM_sub %>% group_by(binomial) %>% summarise(nsite1 = n_distinct(site_id))
@@ -88,11 +89,15 @@ TREAM.sp <- TREAM_sub3[,c("binomial", "Longitude_X", "Latitude_Y")]
 
 #TREAM.sp %>% group_by(binomial) %>% summarise(n_long = n_distinct(Longitude_X), n_lat = n_distinct(Latitude_Y))
 
+# TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"))
+# range_coverage_df <- sum(st_area(st_make_valid(TREAM.sf)))
+
 # Create a SpatialPointsDataFrame by defining the coordinates
 coordinates(TREAM.sp) <- c("Longitude_X", "Latitude_Y")
+proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
 
 #add coordinate system
-proj4string(TREAM.sp) <- CRS("+proj=longlat +datum=WGS84")
+#TREAM.sp <- spTransform(TREAM.sp, CRS("+proj=utm zone=33 +datum=WGS84 +units=m +no_defs"))
 
 TREAM.mcp <- mcp(TREAM.sp, percent = 100)
 MCP <- as.data.frame(TREAM.mcp)
@@ -113,17 +118,15 @@ names(species_info)[names(species_info) == "area"] <- "MCP1"
 # plot(TREAM.mcp, col = alpha(1:5, 0.5), add = TRUE)
 
 #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
-library(rgbif)
-
 species_info$MCP2 <- NA
 
 for (i in 1:length(unique(species_info$binomial))) {
   sp_name <- unique(species_info$binomial)[i]
-  test <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 1000)
+  test <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 10000)
   test <- test$data
 
   #removes data with less than two distinct sites
-  if(length(unique(test$decimalLatitude)) > 2){
+  if(length(unique(test$decimalLatitude)) > 3){
   #extract species and coordinates
   test.sp <- test[,c("species", "decimalLatitude", "decimalLongitude")]
 
@@ -131,7 +134,7 @@ for (i in 1:length(unique(species_info$binomial))) {
   coordinates(test.sp) <- c("decimalLatitude", "decimalLongitude")
 
   #add coordinate system
-  #proj4string(test.sp) <- CRS("+proj=longlat +datum=WGS84")
+  proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
 
   test.mcp <- mcp(test.sp, percent = 100)
   MCP <- as.data.frame(test.mcp)
@@ -141,7 +144,105 @@ for (i in 1:length(unique(species_info$binomial))) {
 
 }
 
-test <- occ_search(scientificName = "Aedes annulipes", hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 1000)
+write.csv(species_info, file = "data/species_information_TREAM.csv", row.names = F)
+
+# add the MCP in ha
+TREAM.sp <- TREAM_sub3[,c("binomial", "Longitude_X", "Latitude_Y")]
+#TREAM.sp <- TREAM.sp[which(!is.na(TREAM$binomial)),]
+
+#TREAM.sp %>% group_by(binomial) %>% summarise(n_long = n_distinct(Longitude_X), n_lat = n_distinct(Latitude_Y))
+
+# TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"))
+# range_coverage_df <- sum(st_area(st_make_valid(TREAM.sf)))
+
+# Create a SpatialPointsDataFrame by defining the coordinates
+coordinates(TREAM.sp) <- c("Longitude_X", "Latitude_Y")
+proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
+
+#add coordinate system
+TREAM.sp <- spTransform(TREAM.sp, CRS("+proj=utm zone=33 +datum=WGS84 +units=m +no_defs"))
+
+TREAM.mcp <- mcp(TREAM.sp, percent = 100)
+MCP <- as.data.frame(TREAM.mcp)
+
+# join the data 
+
+species_info <- full_join(species_info, MCP, by = join_by("binomial" == "id"))
+
+# rename column
+names(species_info)[names(species_info) == "area"] <- "MCP1_ha"
+
+test <- occ_search(scientificName = "Micropsectra bidentata", hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 10000)
 test <- test$data
 
 length(test)
+
+
+# Test second approach for calculating area
+#Calculate MCP
+
+#extract species and coordinates
+TREAM.sp <- TREAM_sub3[,c("binomial", "Longitude_X", "Latitude_Y")]
+
+TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
+TREAM.sf <- st_make_valid(TREAM.sf)
+
+for (i in 3) {
+  tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_info$binomial)[i])
+  range_coverage_df <- sum(st_area(st_make_valid(tmp)))
+  
+}
+
+st_area(tmp)
+
+test2 <- st_as_sf(test, coords = c("decimalLongitude", "decimalLatitude"), crs= 4326)
+st_area(test2)
+# range_coverage_df <- sum(st_area(st_make_valid(TREAM.sf)))
+
+#add coordinate system
+#TREAM.sp <- spTransform(TREAM.sp, CRS("+proj=utm zone=33 +datum=WGS84 +units=m +no_defs"))
+
+TREAM.mcp <- mcp(TREAM.sp, percent = 100)
+MCP <- as.data.frame(TREAM.mcp)
+
+# join the data 
+
+species_info <- full_join(species_info, MCP, by = join_by("binomial" == "id"))
+
+# rename column
+names(species_info)[names(species_info) == "area"] <- "MCP1"
+# library(maps)
+# maps::map('world',xlim=c(-20,40), ylim=c(30,80))
+# plot(TREAM.sp, col = "red", add = T)
+# plot(TREAM.mcp)
+# 
+# library(scales) # Helps make polygons partly transparent using the alpha argument below
+# plot(TREAM.sp, col = as.factor(TREAM.sp@data$binomial), pch = 16)
+# plot(TREAM.mcp, col = alpha(1:5, 0.5), add = TRUE)
+
+#7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
+species_info$MCP2 <- NA
+
+for (i in 1:length(unique(species_info$binomial))) {
+  sp_name <- unique(species_info$binomial)[i]
+  test <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 1000)
+  test <- test$data
+  
+  #removes data with less than two distinct sites
+  if(length(unique(test$decimalLatitude)) > 3){
+    #extract species and coordinates
+    test.sp <- test[,c("species", "decimalLatitude", "decimalLongitude")]
+    
+    # Create a SpatialPointsDataFrame by defining the coordinates
+    coordinates(test.sp) <- c("decimalLatitude", "decimalLongitude")
+    
+    #add coordinate system
+    proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
+    
+    test.mcp <- mcp(test.sp, percent = 100)
+    MCP <- as.data.frame(test.mcp)
+    
+    species_info[which(species_info$binomial == sp_name), "MCP2"] <- MCP[1,2]
+  }
+  
+}
