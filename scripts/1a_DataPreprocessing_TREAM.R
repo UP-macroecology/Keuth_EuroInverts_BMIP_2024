@@ -122,6 +122,8 @@ tmp <- species[row_index,]
 # correcting names using GBIF (if a species name is marked as synonym the accepted scientific name is retrieved)
 species[which(species$identified == "Afghanurus joernensis"), "tsn_check"] <- "Nixe joernensis"
 species[which(species$identified == "Allotrichia pallicornis"), "tsn_check"] <- "Agraylea pallicornis"
+species[which(species$identified == "Anacaena globulus"), "tsn_check"] <- "Anacaena globula"
+species[which(species$identified == "Atyaephyra desmaresti"), "tsn_check"] <- "Atyaephyra desmarestii"
 species[which(species$identified == "Baetis atrebatinus"), "tsn_check"] <- "Labiobaetis atrebatinus"
 species[which(species$identified == "Baetis digitatus"), "tsn_check"] <- "Nigrobaetis digitatus"
 species[which(species$identified == "Baetis muticus"), "tsn_check"] <- "Alainites muticus"
@@ -141,6 +143,7 @@ species[which(species$identified == "Epoicocladius ephemerae"), "tsn_check"] <- 
 species[which(species$identified == "Ferrissia clessiniana"), "tsn_check"] <- "Pettancylus clessinianus"
 species[which(species$identified == "Gomphus flavipes"), "tsn_check"] <- "Stylurus flavipes"
 species[which(species$identified == "Gyraulus laevis"), "tsn_check"] <- "Gyraulus parvus"
+species[which(species$identified == "Halesus tessellatus"), "tsn_check"] <- "Halesus tesselatus"
 species[which(species$identified == "Haliplus wehnckei"), "tsn_check"] <- "Haliplus sibiricus"
 species[which(species$identified == "Heptagenia coerulans"), "tsn_check"] <- "Dacnogenia coerulans"
 species[which(species$identified == "Heterotrissocladius grimshawi"), "tsn_check"] <- "Heterotanytarsus grimshawi"
@@ -148,12 +151,14 @@ species[which(species$identified == "Hydrochus carinatus"), "tsn_check"] <- "Hyd
 species[which(species$identified == "Hydropsyche newae"), "tsn_check"] <- "Ceratopsyche newae"
 species[which(species$identified == "Hydropsyche silfvenii"), "tsn_check"] <- "Ceratopsyche silfvenii"
 species[which(species$identified == "Ibisia marginata"), "tsn_check"] <- "Atherix marginata"
+species[which(species$identified == "Kloosia pusilla"), "tsn_check"] <- "Kloosia pusillus"
 species[which(species$identified == "Limnephilus incisus"), "tsn_check"] <- "Pseudostenophylax incisus"
 species[which(species$identified == "Limnodrilus claparedeanus"), "tsn_check"] <- "Limnodrilus claparedianus"
 species[which(species$identified == "Marstoniopsis scholtzi"), "tsn_check"] <- "Marstoniopsis insubrica"
 species[which(species$identified == "Micropterna lateralis"), "tsn_check"] <- "Stenophylax lateralis"
 species[which(species$identified == "Micropterna nycterobia"), "tsn_check"] <- "Stenophylax nycterobius"
 species[which(species$identified == "Micropterna sequax"), "tsn_check"] <- "Stenophylax sequax"
+species[which(species$identified == "Mystacides azurea"), "tsn_check"] <- "Mystacides azureus"
 species[which(species$identified == "Neolimnomyia nemoralis"), "tsn_check"] <- "Dicranophragma nemorale"
 species[which(species$identified == "Normandia nitens"), "tsn_check"] <- "Riolus nitens"
 species[which(species$identified == "Nymphula stagnata"), "tsn_check"] <- "Nymphula nitidulata"
@@ -168,10 +173,11 @@ species[which(species$identified == "Pisidium obtusale"), "tsn_check"] <- "Eugle
 species[which(species$identified == "Pisidium personatum"), "tsn_check"] <- "Euglesa personata"
 species[which(species$identified == "Pisidium pulchellum"), "tsn_check"] <- "Euglesa pulchella"
 species[which(species$identified == "Pisidium tenuilineatum"), "tsn_check"] <- "Odhneripisidium tenuilineatum"
+species[which(species$identified == "Potthastia longimana"), "tsn_check"] <- "Potthastia longimanus"
 species[which(species$identified == "Radix balthica"), "tsn_check"] <- "Ampullaceana balthica"
 species[which(species$identified == "Radix labiata"), "tsn_check"] <- "Peregriana labiata"
 species[which(species$identified == "Satchelliella mutua"), "tsn_check"] <- "Pneumia mutua"
-species[which(species$identified == "Satchelliella nubila"), "tsn_check"] <- "Pneumia nublia"
+species[which(species$identified == "Satchelliella nubila"), "tsn_check"] <- "Pneumia nubila"
 species[which(species$identified == "Satchelliella pilularia"), "tsn_check"] <- "Pneumia pilularia"
 species[which(species$identified == "Satchelliella trivialis"), "tsn_check"] <- "Pneumia trivialis"
 species[which(species$identified == "Simulium rostratum"), "tsn_check"] <- "Simulium longirostre"
@@ -180,6 +186,8 @@ species[which(species$identified == "Synagapetus iridipennis"), "tsn_check"] <- 
 species[which(species$identified == "Synagapetus moselyi"), "tsn_check"] <- "Agapetus moselyi"
 species[which(species$identified == "Synendotendipes impar"), "tsn_check"] <- "Endochironomus impar"
 species[which(species$identified == "Synendotendipes lepidus"), "tsn_check"] <- "Endochironomus lepidus"
+species[which(species$identified == "Trissopelopia longimana"), "tsn_check"] <- "Trissopelopia longimanus"
+species[which(species$identified == "Tubifex ignotus"), "tsn_check"] <- "Lophochaeta ignota"
 
 # extract corrected species names
 row_index <- which(species$identified != species$tsn_check)
@@ -420,20 +428,20 @@ TREAM[setdiff(which(!is.na(TREAM$genus)), which(!is.na(TREAM$binomial))), "taxon
 TREAM[setdiff(which(!is.na(TREAM$family)), which(!is.na(TREAM$genus))), "taxon_level"] <- "f"
 TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 
-#include a column which contains the finest level of taxon classification
-TREAM$taxon_name <- TREAM$binomial
-
-for(i in 1:nrow(TREAM)){
-  if(is.na(TREAM$order[i])){
-  TREAM$taxon_name[i] <- TREAM$group[i]
-  } else if(is.na(TREAM$family[i])){
-    TREAM$taxon_name[i] <- TREAM$order[i]
-  } else if(is.na(TREAM$genus[i])){
-    TREAM$taxon_name[i] <- TREAM$family[i]
-  } else if(is.na(TREAM$species[i])){
-    TREAM$taxon_name[i] <- TREAM$genus[i]
-  }
-}
+# #include a column which contains the finest level of taxon classification
+# TREAM$taxon_name <- TREAM$binomial
+# 
+# for(i in 1:nrow(TREAM)){
+#   if(is.na(TREAM$order[i])){
+#   TREAM$taxon_name[i] <- TREAM$group[i]
+#   } else if(is.na(TREAM$family[i])){
+#     TREAM$taxon_name[i] <- TREAM$order[i]
+#   } else if(is.na(TREAM$genus[i])){
+#     TREAM$taxon_name[i] <- TREAM$family[i]
+#   } else if(is.na(TREAM$species[i])){
+#     TREAM$taxon_name[i] <- TREAM$genus[i]
+#   }
+# }
 
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
@@ -480,7 +488,7 @@ sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
 sites_wo_species <- sites_wo_species %>% tibble::rownames_to_column(., "site_id") %>% filter(., V1 > 1) 
 TREAM_long <- TREAM_long[sites_wo_species$site_id]
 
-# elongate data frames tomatch the TREAM data set
+# elongate data frames to match the TREAM data set
 TREAM_long2 <- lapply(TREAM_long, function(x){
   if(ncol(x) > 1){
     x <- x %>% pivot_longer(!date, names_to = "binomial", values_to = "abundance") %>% filter(., abundance == 0);
