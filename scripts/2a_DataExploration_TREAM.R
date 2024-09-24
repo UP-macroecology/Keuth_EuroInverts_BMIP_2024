@@ -182,6 +182,3 @@ ggplot(data=no_years_studysites, aes(x = reorder(site_id, no_years), y = no_year
   ggtitle("Sampled years per study site")+
   theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
   ylab("")
-
-
-
