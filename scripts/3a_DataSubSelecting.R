@@ -77,11 +77,95 @@ for (i in 1:length(unique(species_info$binomial))) {
 site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv")
 TREAM <- merge(TREAM, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y")], by = "site_id")
 
-#Extract those species with more than two different study sites (MCP can't be calculated for only two locations)
+#Extract those species with more than two different study sites in the large data set (MCP can't be calculated for only two locations)
 species_reduced <- species_info[which(species_info$nsite2 > 2),]
 TREAM_red_species <- subset(TREAM, TREAM$binomial %in% species_reduced$binomial)
 
-#Calculate MCP using mcp function of adehabitatHR
+# Calculate the MCP (using the sf package as Katrin did for the BBS data)
+
+#extract species and coordinates
+TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
+
+# transform into sf object
+TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
+TREAM.sf <- st_make_valid(TREAM.sf)
+
+save(TREAM.sf, file = "data/TREAM_sf.Rdata")
+
+#extract species (only keep species with more than two distinct locations), obtain convex hull and calculate area
+for (i in 1:nrow(species_info)) {
+  tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_info$binomial)[i])
+  if(nrow(tmp) > 2){
+    tmp <- st_convex_hull(st_union(tmp))
+    range_coverage_df <- sum(st_area(st_make_valid(tmp)))
+    species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP1"] <- as.numeric(range_coverage_df)
+  }
+}
+
+save(species_info, file = "data/species_info_incomplete_sf.Rdata")
+
+#7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
+#This step is executed in a different script to be run on the cluster to download more occurrences
+
+# add new column
+species_info$MCP2 <- NA
+
+# For each species download observations from GBIF, extract the coordinates and calculate MCP for species with more than three different locations
+for (i in 1:length(unique(species_info$binomial))) {
+  sp_name <- unique(species_info$binomial)[i]
+  tmp <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 1000)
+  tmp <- tmp$data
+  
+  #only continue with the species that have more than two different locations
+  if(length(unique(test$decimalLatitude)) > 2){
+    
+    #extract species and coordinates
+    tmp.sp <- tmp[,c("species", "decimalLatitude", "decimalLongitude")]
+    
+    # transform into sf object
+    test.sf <- st_as_sf(test.sp, coords=  c("decimalLatitude", "decimalLongitude"), crs = 4326)
+    test.sf <- st_make_valid(test.sf)
+    
+    # obtain convex hull and calculte range size
+    test.sf <- st_convex_hull(st_union(test.sf))
+    range_coverage_df <- sum(st_area(st_make_valid(test.sf)))
+    species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
+  }
+}
+
+#for (i in 1:length(unique(species_info$binomial))) {
+tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_notworked$binomial)[11])
+# rename column
+names(tmp)[names(tmp) == "binomial"] <- "species"
+if(nrow(tmp) > 2){
+  sp_name <- unique(species_notworked$binomial)[11]
+  tmp_gbif <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 100)
+  tmp_gbif <- tmp_gbif$data
+  #only continue with the species that have more than two different locations
+  if(length(unique(tmp_gbif$decimalLatitude)) > 2){
+    
+    #extract species and coordinates
+    tmp_gbif.sp <- tmp_gbif[,c("species", "decimalLatitude", "decimalLongitude")]
+    
+    # transform into sf object
+    tmp_gbif.sf <- st_as_sf(tmp_gbif.sp, coords=  c("decimalLatitude", "decimalLongitude"), crs = 4326)
+    
+    # add data occurrences and gbif data together
+    tmp.sf <- rbind(tmp_gbif.sf, tmp)
+    tmp.sf <- st_make_valid(tmp.sf)
+    tmp.sf <- st_convex_hull(st_union(tmp.sf))
+    #save(test.sf, file = paste0("/import/ecoc9z/data-zurell/keuth/Work/convex_hull_", sp_name, ".Rdata"))
+    #sf::sf_use_s2(FALSE)
+    range_coverage_df <- sum(st_area(st_make_valid(tmp.sf)))
+    #species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
+    save(range_coverage_df, file = paste0("/import/ecoc9z/data-zurell/keuth/Work/MCP2_", sp_name, ".Rdata"))
+  }
+}
+
+#save data set
+#write.csv(species_info, file = "data/species_information_TREAM_sf.csv", row.names = F)
+
+# Testing a second approach and calculating MCP using mcp function of adehabitatHR --------
 
 #extract species and coordinates
 TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
@@ -169,58 +253,6 @@ for (i in 1:length(unique(species_info$binomial))) {
 
 #save data set
 write.csv(species_info, file = "data/species_information_TREAM_mcp.csv", row.names = F)
-
-# Test a second approach for calculating the MCP (using the sf package as Katrin did for the BBS data)
-
-#extract species and coordinates
-TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
-
-# transform into sf object
-TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
-TREAM.sf <- st_make_valid(TREAM.sf)
-
-#extract species (only keep species with more than two distinct locations), obtain convex hull and calculate area
-for (i in 1:nrow(species_info)) {
-  tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_info$binomial)[i])
-  if(nrow(tmp) > 2){
-  tmp <- st_convex_hull(st_union(tmp))
-  range_coverage_df <- sum(st_area(st_make_valid(tmp)))
-  species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP1"] <- as.numeric(range_coverage_df)
-  }
-}
-
-#save(species_info, file = "data/species_info_incomplete_sf.Rdata")
-
-#7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
-
-# add new column
-species_info$MCP2 <- NA
-
-# For each species download observations from GBIF, extract the coordinates and calculate MCP for species with more than three different locations
-for (i in 1:length(unique(species_info$binomial))) {
-  sp_name <- unique(species_info$binomial)[i]
-  tmp <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 1000)
-  tmp <- tmp$data
-  
-  #only continue with the species that have more than two different locations
-  if(length(unique(test$decimalLatitude)) > 2){
-    
-  #extract species and coordinates
-  test.sp <- test[,c("species", "decimalLatitude", "decimalLongitude")]
-  
-  # transform into sf object
-  test.sf <- st_as_sf(test.sp, coords=  c("decimalLatitude", "decimalLongitude"), crs = 4326)
-  test.sf <- st_make_valid(test.sf)
-  
-  # obtain convex hull and calculte range size
-  test.sf <- st_convex_hull(st_union(test.sf))
-  range_coverage_df <- sum(st_area(st_make_valid(test.sf)))
-  species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
-  }
-}
-
-#save data set
-write.csv(species_info, file = "data/species_information_TREAM_sf.csv", row.names = F)
 
 #Compare the two methods -----
 #Load in mcp data set
