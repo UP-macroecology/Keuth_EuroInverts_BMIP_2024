@@ -1,0 +1,89 @@
+---
+title: "Species Selection"
+author: "Nick Isaac"
+date: "2024-09-25"
+output: html_document
+---
+
+Raya prepared the species data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(GGally)
+```
+
+```{r}
+data <- read.csv("species_information_TREAM_sf.csv")
+nrow(data)
+names(data)
+```
+
+We have 762 species. These are all the taxa in the TREAM dataset that have been identified to species-level and present on at least one of the 202 well-sampled sites in the dataset (defined as having at least 20 years of data since 1990)
+
+`name`: Latin binomial
+`nsite1`: number of sites out of 202 on which the species has at least one record
+`nsite2`: number of sites in the entire TREAM dataset
+`trend`: year effect of a linear trend model, `log(N) ~ Year + factor(site)` using the 202 well-sampled sites
+`MCP1`: minimum convex polygon around all the sites in the TREAM dataset 
+`MCP2`: minimum convex polygon around 5000 GBIF records (to be changed) 
+
+NB some of the species have non-matching GBIF names. These get `NA` in the MCP2 variable:
+```{r}
+colSums(is.na(data))
+```
+
+There are 49 species have `NA` for the `MCP1`, which I did not expect.
+```{r}
+table(subset(data, is.na(MCP1))$nsite2)
+```
+
+Of course: if there are less than 3 sites then it is not possible to calculate the MCP!
+
+
+# Intercorrelations
+```{r, fig.width=10, fig.height = 4}
+data$logMCP1 <- log(data$MCP1)
+data$logMCP2 <- log(data$MCP2)
+ggpairs(data[,c(2,3,4,7,8)])
+```
+Hard to figure out the relationship between MCP1 and MCP2. Need to think about how to handle this.
+
+Figure out where the terciles lie:
+```{r}
+apply(data[,c(2,3,4,7,8)], 2, quantile, c(0.33,0.5,0.67), na.rm=T)
+```
+
+Quantiles for trend are reasonably symmetrical.
+
+
+
+# Classify species
+Look at the distribution of species:
+```{r, fig.width=10}
+gp <- ggplot(data, aes(x=trend, y=logMCP2)) +
+ # geom_point(aes(colour = cut(data$nsite1, breaks = c(1,2,4,8, Inf)))) +
+  geom_point(aes(colour = log(nsite1), size = log(nsite1))) +
+  #geom_point(aes(size = (data$nsite1))) +
+  geom_vline(xintercept = quantile(data$trend, 0.33, na.rm=T), col="grey") +
+  geom_vline(xintercept = quantile(data$trend, 0.67, na.rm=T), col="grey") +
+  geom_hline(yintercept = quantile(data$logMCP2, 0.33, na.rm=T), col="grey") +
+  geom_hline(yintercept = quantile(data$logMCP2, 0.67, na.rm=T), col="grey") +
+  theme_bw()
+
+gp + xlim(c(-0.1, 0.1)) + ylim(c(27.5, 33.5))
+
+```
+
+How many species within each of the nine regions. We'll use MCP1 here, since it is available for all species present on at least 3 sites (out of >800).
+```{r}
+tCut <- function(x, labs = NULL) cut(x, incl= TRUE, right = FALSE,
+                                     breaks = quantile(x, c(0, 0.33, 0.67, 1), na.rm = TRUE, labels = labs))
+
+data$trendCat <- tCut(data$trend, labs = c("declining", "stable", "increasing"))
+data$RangeCat <- tCut(data$MCP1, labs = c("small", "medium", "big"))
+data$nSiteCat <- cut(data$nsite1, incl= TRUE, breaks = c(1, 2, 5, 10,Inf))
+with(data, table(trendCat, RangeCat, nSiteCat, useNA="if"))
+```
+
+Restricting the dataset to species with at least 10 sites would mean that we have 18 or more species in each of the nine classes from which to select three at random. Relaxing this to 5 sites would provide at least 25 species in each class.
