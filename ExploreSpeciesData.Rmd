@@ -5,7 +5,7 @@ date: "2024-09-25"
 output: html_document
 ---
 
-Raya prepared the species data
+Raya prepared the species data. Here we start to 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -13,25 +13,38 @@ library(ggplot2)
 library(GGally)
 ```
 
+# Load and explore data
+
 ```{r}
-data <- read.csv("species_information_TREAM_sf.csv")
+data <- read.csv("species_information_TREAM.csv")
 nrow(data)
 names(data)
 ```
 
-We have 762 species. These are all the taxa in the TREAM dataset that have been identified to species-level and present on at least one of the 202 well-sampled sites in the dataset (defined as having at least 20 years of data since 1990)
+We have 762 species. These are all the taxa in the TREAM dataset that have been identified to species-level and present on at least one of the 202 well-sampled sites in the dataset (defined as having at least 20 years of data since 1990). The rationale here is that we want species that have enough data from which to parameterize the models.
 
 `name`: Latin binomial
 `nsite1`: number of sites out of 202 on which the species has at least one record
 `nsite2`: number of sites in the entire TREAM dataset
 `trend`: year effect of a linear trend model, `log(N) ~ Year + factor(site)` using the 202 well-sampled sites
+`std.error` on the year effect from the linear trend model
+`p.value` from the linear trend model
 `MCP1`: minimum convex polygon around all the sites in the TREAM dataset 
 `MCP2`: minimum convex polygon around 5000 GBIF records (to be changed) 
+`perc_range_coverage` is MCP1 as a percentage of MCP2
 
 NB some of the species have non-matching GBIF names. These get `NA` in the MCP2 variable:
 ```{r}
 colSums(is.na(data))
 ```
+
+One species has `NA` for the p-value.
+```{r}
+subset(data, is.na(p.value), select = 1:6)
+```
+
+Wierd: the trend and standard error are zero. But this species is present on just one of the 202 "good" sites, so it's unlikely we would include it.
+
 
 There are 49 species have `NA` for the `MCP1`, which I did not expect.
 ```{r}
@@ -40,50 +53,113 @@ table(subset(data, is.na(MCP1))$nsite2)
 
 Of course: if there are less than 3 sites then it is not possible to calculate the MCP!
 
+Let's look at `perc_range_coverage`:
+```{r}
+hist(data$perc_range_coverage, main = "TREAM coverage of GBIF range", xlab = "percentage coverage")
+```
+
+So, for most species, the TREAM sites cover only a small proportion of the GBIF range. We may want to think about this in more detail.
+
 
 # Intercorrelations
-```{r, fig.width=10, fig.height = 4}
+```{r, fig.width=10, fig.height = 4, echo = FALSE}
 data$logMCP1 <- log(data$MCP1)
 data$logMCP2 <- log(data$MCP2)
-ggpairs(data[,c(2,3,4,7,8)])
+ggpairs(data[,c(2,3,4,7,8,9)])
 ```
-Hard to figure out the relationship between MCP1 and MCP2. Need to think about how to handle this.
+
+The relationship between `MCP1` and `MCP2` is positive (as expected) but not massively strong (coefficient = 0.61). Need to think about how to handle this.
+
+Are the same species `NA` for both?
+```{r}
+with(data, table(is.na(MCP1), is.na(MCP2)))
+```
+
+Largely no. 
+
+Recall that the 49 species for which `MCP1 == NA` are those for which the number of sites is 1 or 2, i.e. not enough to create an MCP. the 22 species for which `MCP2 == NA` are those for which there is no name match on GBIF. Only 5 species fall into both categories.
+
 
 Figure out where the terciles lie:
 ```{r}
 apply(data[,c(2,3,4,7,8)], 2, quantile, c(0.33,0.5,0.67), na.rm=T)
 ```
 
-Quantiles for trend are reasonably symmetrical.
+Quantiles for `trend` are reasonably symmetrical. This provides a good starting point for classifing species as "increasing" vs "stable" vs "decreasing".
 
+For the `trend`, the terciles lie close to +/- 0.004. This is a linear trend in log abundance per year. To convert that back to a percentage change is straightforward:
+```{r}
+100 * (exp(0.004) - 1)
+```
+
+That's 0.4% per year.
+```{r}
+100 * (exp(0.004 * 30) - 1)
+```
+
+Or 12.7% over 30 years. 
+
+We need to think about how this compares with birds: Mark talked about frequency of sites with the bird changed +- 1% in 30 years. We've not measured change in frequency of occurrence. 
+
+Mark also notes that "increasing" and "decreasing" species should also be significant trends.
+
+So let's continue with the terciles for now, but impose the additional criterion that the linear trend should be significant at alpha = 0.05.
 
 
 # Classify species
 Look at the distribution of species:
 ```{r, fig.width=10}
 gp <- ggplot(data, aes(x=trend, y=logMCP2)) +
- # geom_point(aes(colour = cut(data$nsite1, breaks = c(1,2,4,8, Inf)))) +
-  geom_point(aes(colour = log(nsite1), size = log(nsite1))) +
-  #geom_point(aes(size = (data$nsite1))) +
+  geom_point(aes(colour = factor(p.value <= 0.05), size = log(nsite1))) +
   geom_vline(xintercept = quantile(data$trend, 0.33, na.rm=T), col="grey") +
   geom_vline(xintercept = quantile(data$trend, 0.67, na.rm=T), col="grey") +
   geom_hline(yintercept = quantile(data$logMCP2, 0.33, na.rm=T), col="grey") +
   geom_hline(yintercept = quantile(data$logMCP2, 0.67, na.rm=T), col="grey") +
   theme_bw()
 
-gp + xlim(c(-0.1, 0.1)) + ylim(c(27.5, 33.5))
-
+gp + xlim(c(-0.1, 0.1)) + ylim(c(27.5, 33))
 ```
 
-How many species within each of the nine regions. We'll use MCP1 here, since it is available for all species present on at least 3 sites (out of >800).
+For the BMIP, we agreed to separate the species into nine regions: one based upon the total range size and the other on the trend.
+
+Re range size, I've used `MCP2`, which derives from GBIF. Note above there are some species for which we could not match the TREAM name with GBIF. For `MCP2`, the separation into terciles seems quite sensible.
+
+For trend, the vertical lines here delimit the terciles. But we also want the "increasing" and "decreasing" categories to be restricted to those for whom the trend is significant at alpha = 0.05.
+
+How many species within each of the nine regions? 
 ```{r}
-tCut <- function(x, labs = NULL) cut(x, incl= TRUE, right = FALSE,
-                                     breaks = quantile(x, c(0, 0.33, 0.67, 1), na.rm = TRUE, labels = labs))
+tCut <- function(x, labs) cut(x, incl= TRUE, right = FALSE,
+                                     breaks = quantile(x, c(0, 0.33, 0.67, 1), na.rm = TRUE), labels = labs)
 
 data$trendCat <- tCut(data$trend, labs = c("declining", "stable", "increasing"))
-data$RangeCat <- tCut(data$MCP1, labs = c("small", "medium", "big"))
-data$nSiteCat <- cut(data$nsite1, incl= TRUE, breaks = c(1, 2, 5, 10,Inf))
+data$RangeCat <- tCut(data$MCP2, labs = c("small", "medium", "big"))
+data$nSiteCat <- cut(data$nsite1, incl= TRUE, breaks = c(1, 2, 5, 10,Inf), labels=c("1-2", "3-5","6-10", "11+"))
+```
+
+Need to additionally set `trendCat` to "stable" for species where the trend is non-significant.
+
+```{r}
+data$trendCat[data$p.value > 0.05] <- "stable"
+```
+
+Now let's look at the number of species in each of the nine zones, stratified by the number of sites.
+```{r}
 with(data, table(trendCat, RangeCat, nSiteCat, useNA="if"))
 ```
 
-Restricting the dataset to species with at least 10 sites would mean that we have 18 or more species in each of the nine classes from which to select three at random. Relaxing this to 5 sites would provide at least 25 species in each class.
+There are relatively few species where `RangeCat == "small"` and `trendCat != "stable"`. This is because we specified that the trend needs to be significantly different from zero: when the number of sites is small, there is not enough power to reject the null.
+
+This is also apparent from the fact that, when the number of sites is small, most species trends are classified as "stable".
+
+Restricting the dataset to species with at least 11 sites would mean that we have 15 or more species in each of the nine classes from which to select three at random. Relaxing this to 5 sites would increase the pool somewhat: minimum pool up to 23 species.
+
+Note that the final column (`RangeCat == NA`) refers to species for which there is no matching name on GBIF so the MCP could not be calculated.
+
+
+# Remaining issues
+ - Are we happy to use MCP2 to classify species into terciles? (acknowledging that we lose some that could not be matched to GBIF)
+ - what threshold of trend should we use?
+ - what threshold number of sites should we use (to select species)?
+ - do we need to think more about the biogeography?
+ - what threshold number of years to select sites for the model fitting? (we've used sites with 20 years to identify the species entering this analysis)
+
