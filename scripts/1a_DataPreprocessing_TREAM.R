@@ -1,6 +1,6 @@
 # Preprocessing the TREAM data set
-# This is the better prepared dataset about the macroinvertebrate freshwater data from Europe
-# Goal: Preprocessing of the taxon column
+# The data set was published by Welti et al. (2024) https://doi.org/10.1038/s41597-024-03445-3
+# Goal: Cleaning the columns, harmonizing the taxon names, adding structural zeros
 
 # Load packages
 library(taxize)
@@ -10,18 +10,18 @@ library(dplyr)
 library(tidyverse)
 library(tibble)
 
+# Loading in data and cleaning first columns -----
 # load in data
 TREAM <- read.csv("data/TREAM/TREAM_allTaxa.csv", na.strings=c("", "NA"))
 
 # correct object classes of some columns
 TREAM$site_id <- as.character(TREAM$site_id)
-TREAM$month <- as.integer(TREAM$month) # entries of month of Italy is set to NA, as they specified the month as 6 o 8
+TREAM$month <- as.integer(TREAM$month) # entries of month of Italy is set to NA, as they specified the month as 6 to 8
 
 # fix taxonID column
 #sort(unique(TREAM$taxon_id), decreasing = T)
-#in the taxon ID four taxon groups are wongly added: Platyhelminthes Gen. sp.; Nemertea Gen. sp.; Mollusca Gen. sp.; Clitellata Gen. sp.
-
-#set them to NA as the additional information is also available in other columns
+#in the taxon ID four taxon groups are wrong: Platyhelminthes Gen. sp.; Nemertea Gen. sp.; Mollusca Gen. sp.; Clitellata Gen. sp.
+#set them to NA as this information is also available in other columns
 TREAM[which(TREAM$taxon_id %in% c("Platyhelminthes Gen. sp.", "Nemertea Gen. sp.", "Mollusca Gen. sp.", "Clitellata Gen. sp.") ), "taxon_id"] <- NA
 
 # add date to the data set
@@ -31,16 +31,21 @@ TREAM$date <- paste(TREAM$year, TREAM$month, TREAM$day,  sep = "-")
 TREAM[which(is.na(TREAM$month)), "date"] <- TREAM[which(is.na(TREAM$month)), "year"]
 TREAM[which(TREAM$country == "Finland"), "date"] <- paste(TREAM[which(TREAM$country == "Finland"), "year"], TREAM[which(TREAM$country == "Finland"), "month"],  sep = "-")
 
+# remove rows with NA (almost all cells are empty in this rows)
+TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
+
+# clean species column and create a column with the binomial species name ---------
 #remove species appendices
 TREAM$species <- str_remove(TREAM$species, " Lv.")
 TREAM$species <- str_remove(TREAM$species, " Ad.")
+
 # Create full scientific species name from two columns
 TREAM$binomial <- paste(TREAM$Genus.group, TREAM$species)
 
 # reorder columns in data frame
 TREAM <- TREAM %>% relocate(country, .after = site_id) %>% relocate(date, .after = year) %>% relocate(binomial, .after = species)
 
-# remove binomial name for individuals that are just identified to genus or family level
+# remove binomial name for individuals that are just identified to genus level or coarser
 TREAM[grep("/",TREAM[,"binomial"]), "binomial"] <- NA
 TREAM[TREAM$species %in% c("sp.", "Gen. sp."), "binomial"] <- NA
 TREAM[which(TREAM$binomial == " "),] <- NA
@@ -55,7 +60,7 @@ TREAM$binomial <- str_remove(TREAM$binomial, " -agg.")
 TREAM$binomial <- str_remove(TREAM$binomial, " -Gr.")
 TREAM$binomial <- str_remove(TREAM$binomial, " -Agg.")
 
-#remove subspecies identification
+#remove the additional subspecies identification in some columns
 TREAM <- TREAM %>%
   as_tibble() %>%
   mutate(
@@ -65,23 +70,24 @@ TREAM <- TREAM %>%
 
 TREAM <- as.data.frame(TREAM)
 
-# adjust certain minor mistakes in species names
+# adjust minor mistakes in the species binomial names
 TREAM[which(TREAM$binomial == "Vejdovskiella comata"), "binomial"] <- "Vejdovskyella comata"
 TREAM[which(TREAM$binomial == "Corbicula \"fluminalis\""),"binomial"] <- "Corbicula fluminalis"
 
-#remove binomial names which don't make sense and can not be find
+#remove binomial names and corresponding entry in the species column which don't make sense and can not be find on GBIF
 TREAM[which(TREAM$binomial == "Thienemannimyia Gr."), "binomial"] <- NA
 TREAM[which(TREAM$binomial == "Orthocladiini COP"),"binomial"] <- NA
 TREAM[which(TREAM$species == "Gr."), "species"] <- NA
 TREAM[which(TREAM$species == "COP"), "species"] <- NA
 
-# check for correct binomial names -----------
+# check if the binomial names are correct (using the taxize package) -----------
 
-# extract species names
+# obtain binomial species names and transform it into a data frame
 species <- as.data.frame(sort(unique(TREAM$binomial)))
 names(species) <- c("identified")
 
-# loop through every single species and extract tsn code, which is then checked for the accepted name if the species was found in tsn to see if any synonyms were used
+# loop through every single species and extract tsn code, which is then checked for the accepted name of this species, with this I aim to identify if 
+# synonyms were used for some species 
 # species$tsn_check <- NA
 # for (i in 1:nrow(species)) {
 #   tsn <- get_tsn(species[i,"identified"], accepted = F)
@@ -98,15 +104,15 @@ names(species) <- c("identified")
 # }
 # species with NA in tsn_check need to be checked by hand for their correct species name
 
-#save the data set
+#since the loop needs quite a long time I save the data set, so the loop with the tsn-check can be skipped
 #save(species, file="data/species_TREAM_tsn_check.Rdata")
-load("data/species_TREAM_tsn_check.Rdata")
+load("data/species_TREAM_tsn_check.Rdata") 
 
-# check corrected species names of the function for mistakes
+# for the species for which the function found a different name I just double check them to make sure that there was no mistake by the function
 row_index <- which(species$identified != species$tsn_check)
 tmp <- species[row_index,]
 
-# correct some mistakes that were made by the function for assorting new names to the species
+# correct mistakes I found
 species[which(species$identified == "Agnetina elegantula"), "tsn_check"] <- "Agnetina elegantula"
 species[which(species$identified == "Cloeon inscriptum"), "tsn_check"] <- "Cloeon inscriptum"
 species[which(species$identified == "Dendrocoelum lacteum"), "tsn_check"] <- "Dendrocoelum lacteum"
@@ -119,7 +125,7 @@ species[which(species$identified == "Ula sylvatica"), "tsn_check"] <- "Ula sylva
 row_index <- which(is.na(species$tsn_check))
 tmp <- species[row_index,]
 
-# correcting names using GBIF (if a species name is marked as synonym the accepted scientific name is retrieved)
+# correcting names using GBIF (if a species name is marked as synonym in GBIF the accepted scientific name is retrieved)
 species[which(species$identified == "Afghanurus joernensis"), "tsn_check"] <- "Nixe joernensis"
 species[which(species$identified == "Allotrichia pallicornis"), "tsn_check"] <- "Agraylea pallicornis"
 species[which(species$identified == "Anacaena globulus"), "tsn_check"] <- "Anacaena globula"
@@ -189,18 +195,18 @@ species[which(species$identified == "Synendotendipes lepidus"), "tsn_check"] <- 
 species[which(species$identified == "Trissopelopia longimana"), "tsn_check"] <- "Trissopelopia longimanus"
 species[which(species$identified == "Tubifex ignotus"), "tsn_check"] <- "Lophochaeta ignota"
 
-# extract corrected species names
+# extract the species names that are not correct in the original data frame
 row_index <- which(species$identified != species$tsn_check)
 species_corrected <- species[row_index, "identified"]
 
-# replace all NAs with the identified binomial names, as they are correct
+# retrieve the species names for which GBIF and the tsn_check both found that it is the correct species name
 for (i in 1:nrow(species)){
   if(is.na(species$tsn_check[i])){
     species$tsn_check[i] <- species$identified[i]
   }
 }
 
-# extract data from the species with the changed name to later check the coarser levels
+# extract data from the original data set for the species for which the names needed to be changed (needed to correct the coarser levels at a later point)
 df_species_corrected <- c()
 for(i in 1:length(species_corrected)){
   df_species_corrected <- rbind(df_species_corrected, TREAM[which(TREAM$binomial == species_corrected[i]),c(7:10, 12)])
@@ -209,7 +215,7 @@ for(i in 1:length(species_corrected)){
 # keep only the distinct species names
 df_species_corrected <- distinct(df_species_corrected)
 
-# merge the extracted old species names with the new ones
+# merge the corrected species named with all species names
 df_species_corrected <- merge(df_species_corrected, species, by.x = "binomial", by.y = "identified")
 
 # add the corrected names to the data set
@@ -217,6 +223,7 @@ for (i in 1:nrow(species)){
  TREAM[which(TREAM$binomial == species$identified[i]),"binomial"] <- species$tsn_check[i]
 }
 
+# correcting the coarser levels (genus, family, order) for the species for which the names in the original data set were synonyms 
 # correct wrong coarser levels due to changes in the species names
 TREAM[which(TREAM$binomial == "Peringia ulvae"), "Group"] <- "Gastropoda"
 TREAM[which(TREAM$binomial == "Pettancylus clessinianus"), "Family"] <- "Planorbidae"
@@ -231,11 +238,10 @@ TREAM[which(TREAM$Species_corrected == ""), "Species_corrected"] <- NA
 row.index <- which(TREAM["Genus.group"] != TREAM["Genus_corrected"])
 row.index2 <- which(TREAM["species"] != TREAM["Species_corrected"])
 
-# replace the identified scientific name with the corrected one
+# replace the scientific name with the corrected one for genus and species
 for (i in 1:length(row.index)) {
     TREAM[row.index[i], "Genus.group"] <- TREAM[row.index[i], "Genus_corrected"]
 }
-
 for (i in 1:length(row.index2)) {
   TREAM[row.index2[i], "species"] <- TREAM[row.index2[i], "Species_corrected"]
 }
@@ -246,7 +252,7 @@ TREAM <- TREAM[, -which(names(TREAM) %in% c("Genus_corrected", "Species_correcte
 # back transform data set to data frame
 TREAM <- as.data.frame(TREAM)
 
-# Genus level ------
+# clean the genus column -----------
 
 # set Genus to NA, if it wasn't determined
 TREAM[which(TREAM$species == "Gen. sp."), "Genus.group"] <- NA
@@ -256,19 +262,19 @@ TREAM$species[TREAM$species %in% c("sp.", "Gen. sp.", "s.")] <- NA
 # rename column
 names(TREAM)[names(TREAM) == "Genus.group"] <- "genus"
 
-# Family level -------
+# check if the family names are correct (using the taxize package) --------
 
 # obtain families name with outside function
-# obtain the order level for every single identification
+# obtain the genus level for every single identification
 genus <- sort(unique(TREAM$genus))
 
 # genus_families <- data.frame()
-# for (i in 460:length(genus)){
+# for (i in 1:length(genus)){
 #   temp <- tax_name(genus[i], get = "family")
 #   genus_families <- rbind(genus_families, temp)
 # }
 
-# #check NAs
+# #check the genera for which the function could not find the correct family
 # genus_families[which(genus_families$query == "Agriotypus"), "family"] <- "Ichneumonidae"
 # genus_families[which(genus_families$query %in% c("Ampullaceana", "Alainites", "Nigrobaetis")), "family"] <- "Baetidae"
 # genus_families[which(genus_families$query == "Anisus"), "family"] <- "Curculionidae"
@@ -323,7 +329,7 @@ genus <- sort(unique(TREAM$genus))
 # genus_families[which(genus_families$query %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)") ), "family"] <- "Simuliidae"
 # genus_families[which(genus_families$query == "Tipula (Yamatotipula)"), "family"] <- "Tipulidae"
 # 
-# # clean wrongly corrected family names
+# # clean families that were wrongly corrected by the function
 # genus_families[which(genus_families$query == "Ampullaceana"), "family"] <- "Lymnaeidae"
 # genus_families[which(genus_families$query == "Anisus"), "family"] <- "Planorbidae"
 # genus_families[which(genus_families$query %in% c("Pseudolimnophila", "Lipsothrix", "Pilaria", "Paradelphomyia", "Ormosia", "Molophilus", "Limonia", "Limnophila", "Hexatoma", "Antocha", "Gnophomyia", "Austrolimnophila", "Cheilotrichia", "Erioptera", "Helius", "Gonomyia")), "family"] <- "Limoniidae"
@@ -338,14 +344,14 @@ genus <- sort(unique(TREAM$genus))
 # genus_families[which(genus_families$query == "Cordylophora"), "family"] <- "Cordylophoridae"
 # 
 
-# save data set
+# save data set (again to save time and be able to skip the code)
 # save(genus_families, file = "data/genus_families_TREAM.Rdata")
 load("data/genus_families_TREAM.Rdata")
 
-# These three entries can not confidently be linked to one family, either because the genus is from a different family, a synonym or doesn't even exist
+# These three entries can not confidently be linked to one family, either because the two genus are from a different family, a synonym or don't even exist
 TREAM[which(TREAM$genus %in% c("Amphimelania", "Crangonyx/Niphargus", "Holostomis")),]
 
-# clean the family level
+# clean the family level column in the original data set
 TREAM[which(TREAM$Family == "Enchytraeidae\xa0"), "Family"] <- "Enchytraeidae"
 TREAM[which(TREAM$Family == "Naididae (formerly Tubificidae)"), "Family"] <- "Naididae"
 TREAM[which(TREAM$Family == "Naididae/Tubificidae"), "Family"] <- "Naididae"
@@ -362,13 +368,13 @@ TREAM[which(TREAM$Family == "Nabididae"), "Family"] <- "Naididae"
 # merge data sets and check if the families are different
 TREAM <- merge(TREAM, genus_families, by.x = "genus", by.y = "query", all = T)
 
-#replace old family values
+#replace old family entries
 TREAM[which(TREAM$Family != TREAM$family), "Family"] <- TREAM[which(TREAM$Family != TREAM$family), "family"]
 
 # remove additional columns
 TREAM <- TREAM[, -which(names(TREAM) %in% c("db", "family"))]
 
-# clean genus level
+# clean genus level (again)
 TREAM[which(TREAM$genus %in% c("Anax/Hemianax", "Annitella/Chaetopteryx", "Chelifera/Hemerodromia", "Coleoptera", "Habroleptoides/Paraleptophlebia", "Orthocladiini")) , "genus"] <- NA
 TREAM[which(TREAM$genus == "Atherix/Ibisia"), "genus"] <- "Atherix"
 TREAM[which(TREAM$genus == "Bezzia-Gr."), "genus"] <- "Bezzia"
@@ -379,10 +385,11 @@ TREAM[which(TREAM$genus == "Tipula (Yamatotipula)"), "genus"] <- "Tipula"
 TREAM[which(TREAM$genus == "Vejdovskiella"), "genus"] <- "Vejdovskyella"
 TREAM[which(TREAM$genus %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)")), "genus"] <- "Simulium"
 
-# Obtain order level ------------
+# check if the order names are correct (using the taxize package) --------
+# extract the single family values
 families <- sort(unique(TREAM$Family))
 
-# obtain the order level for every single identification
+# obtain the order level for every single family identification
 # families_order <- data.frame()
 # for (i in 1:length(families)){
 #   temp <- tax_name(families[i], get = "order")
@@ -396,11 +403,11 @@ families <- sort(unique(TREAM$Family))
 # families_order[which(families_order$query %in% c("Cylindrotomidae", "Limoniidae", "Pediciidae")), "order"] <- "Diptera"
 # families_order[which(families_order$query == "Cordylophoridae"), "order"] <- "Anthoathecata"
 
-#save the data set
+#save the data set (again to be able to skip the code that takes some time to be run)
 #save(families_order, file="data/families_orders_TREAM.Rdata")
 load("data/families_orders_TREAM.Rdata")
 
-# merge both data sets
+# merge the data sets and check which orders are corrected
 TREAM <- merge(TREAM, families_order, by.x = "Family", by.y = "query", all = T)
 
 TREAM <- TREAM[, -which(names(TREAM) %in% c("db"))]
@@ -415,8 +422,7 @@ TREAM <- TREAM %>% relocate(c(Family, genus), .after = Group) %>% relocate(order
 names(TREAM)[names(TREAM) == "Family"] <- "family"
 names(TREAM)[names(TREAM) == "Group"] <- "group"
 
-# remove rows with NA (almost all cells are empty in this rows)
-TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
+# last bit of cleaning and adding the level to which the individual was identified ----
 
 # remove a mistake that happened in the binomial column for some reason
 TREAM[which(TREAM$binomial == "NA NA"), "binomial"] <- NA
@@ -428,25 +434,9 @@ TREAM[setdiff(which(!is.na(TREAM$genus)), which(!is.na(TREAM$binomial))), "taxon
 TREAM[setdiff(which(!is.na(TREAM$family)), which(!is.na(TREAM$genus))), "taxon_level"] <- "f"
 TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 
-# #include a column which contains the finest level of taxon classification
-# TREAM$taxon_name <- TREAM$binomial
-# 
-# for(i in 1:nrow(TREAM)){
-#   if(is.na(TREAM$order[i])){
-#   TREAM$taxon_name[i] <- TREAM$group[i]
-#   } else if(is.na(TREAM$family[i])){
-#     TREAM$taxon_name[i] <- TREAM$order[i]
-#   } else if(is.na(TREAM$genus[i])){
-#     TREAM$taxon_name[i] <- TREAM$family[i]
-#   } else if(is.na(TREAM$species[i])){
-#     TREAM$taxon_name[i] <- TREAM$genus[i]
-#   }
-# }
-
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
 
-# Code from here is not controlled and need to be officially be included
 # place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
 #TREAM$site_id <- as.character(TREAM$site_id)
@@ -482,7 +472,7 @@ TREAM_long <- lapply(TREAM_list, function(x){
   return(df_long)
 })
 
-#Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
+#Remove data sets of study sites without any species (i.e. only one column, as for those datas ets no structural 0 for the species exist)
 sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
 sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
 sites_wo_species <- sites_wo_species %>% tibble::rownames_to_column(., "site_id") %>% filter(., V1 > 1) 
