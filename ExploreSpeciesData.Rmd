@@ -43,7 +43,7 @@ One species has `NA` for the p-value.
 subset(data, is.na(p.value), select = 1:6)
 ```
 
-Wierd: the trend and standard error are zero. But this species is present on just one of the 202 "good" sites, so it's unlikely we would include it.
+Weird: the trend and standard error are zero. But this species is present on just one of the 202 "good" sites, so it's unlikely we would include it.
 
 
 There are 49 species have `NA` for the `MCP1`, which I did not expect.
@@ -60,6 +60,12 @@ hist(data$perc_range_coverage, main = "TREAM coverage of GBIF range", xlab = "pe
 
 So, for most species, the TREAM sites cover only a small proportion of the GBIF range. We may want to think about this in more detail.
 
+Which different taxonomic groups do we have in the data set
+```{r}
+sort(table(data$order))
+length(unique(data$order))
+```
+In total we have 35 different orders in this data set. Coleoptera, Trichoptera and Diptera are the most represented.
 
 # Intercorrelations
 ```{r, fig.width=10, fig.height = 4, echo = FALSE}
@@ -164,6 +170,24 @@ Restricting the dataset to species with at least 11 sites would mean that we hav
 
 Note that the final column (`RangeCat == NA`) refers to species for which there is no matching name on GBIF so the MCP could not be calculated.
 
+How are the different taxonomic groups represented in the different trend and range categories?
+
+```{r}
+with(data, table(trendCat, RangeCat, order, useNA="if"))
+```
+The more represented groups provide more species that fall into different categories. We also said that we want to concentrate on flying insects, which means that we might have to remove additional species. Do we want to cover as most taxonomic groups as possible or focus on single taxonomic groups that cover the different categories?
+
+After a quick google search, I would consider these ones as non-flying (spending most of their lifetime within the waterbody): Amphipoda, Anthoathecata, Arguloida, Decapoda, Ectobranchia, Hirudinida, Littorinida, Lumbriculida, Myida, Mysida, Neritopsida, Plumatellida, Sphaeriida, Terebellida, Tricladida, Tubificida, Unionida, Venerida, Viviparida
+Not sure about these ones: Gordioidea, Isopoda, Opisthopora
+
+How does the number of species in each of the nine zones, stratified by the number of sites looks like with just using the the orders of flying insects?
+```{r}
+`%!in%` = Negate(`%in%`)
+data_flying <- data[which(data$order %!in% c("Amphipoda", "Anthoathecata", "Arguloida", "Decapoda", "Ectobranchia", "Hirudinida", "Littorinida", "Lumbriculida", "Myida", "Mysida", "Neritopsida", "Plumatellida", "Sphaeriida", "Terebellida", "Tricladida", "Tubificida", "Unionida", "Venerida", "Viviparida")),]
+
+with(data_flying, table(trendCat, RangeCat, nSiteCat, useNA="if"))
+```
+Using only the flying insects doesn't have a strong effect on the number of species. Maybe because the flying ones are well-known in comparison to the other ones?
 
 # Remaining issues
  - Are we happy to use MCP2 to classify species into terciles? (acknowledging that we lose some that could not be matched to GBIF)
