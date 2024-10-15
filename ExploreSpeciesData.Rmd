@@ -1,11 +1,11 @@
 ---
 title: "Species Selection"
-author: "Nick Isaac"
+author: "Nick Isaac & Raya Keuth"
 date: "2024-09-25"
 output: html_document
 ---
 
-Raya prepared the species data. Here we start to 
+Raya prepared the species data. Here we start the process of selecting species for the BMIP.  
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -109,8 +109,17 @@ So let's continue with the terciles for now, but impose the additional criterion
 # Classify species
 Look at the distribution of species:
 ```{r, fig.width=10}
+#data$shape <- data$p.value <= 0.05
+#levels(data$shape) <- c(1, 16)
+#data$shape <- as.factor(ifelse(data$p.value <= 0.05, 1, 16))
+#data$shape <- as.factor(data$p.value <= 0.05, levels = c(1, 16))
+#data$shape <- factor(data$p.value <= 0.05, levels = c(1, 16))
+
 gp <- ggplot(data, aes(x=trend, y=logMCP2)) +
-  geom_point(aes(colour = factor(p.value <= 0.05), size = log(nsite1))) +
+  geom_point(aes(colour = cut(perc_range_coverage, breaks = c(0,40,70,100)),
+                 shape = data$p.value <= 0.05,
+                 size = log(nsite1))) + 
+  scale_shape_manual(values=c(1, 16)) +
   geom_vline(xintercept = quantile(data$trend, 0.33, na.rm=T), col="grey") +
   geom_vline(xintercept = quantile(data$trend, 0.67, na.rm=T), col="grey") +
   geom_hline(yintercept = quantile(data$logMCP2, 0.33, na.rm=T), col="grey") +
