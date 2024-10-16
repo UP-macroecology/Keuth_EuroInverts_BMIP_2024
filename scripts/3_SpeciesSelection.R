@@ -106,7 +106,6 @@ TREAM.sf <- st_make_valid(TREAM.sf)
 for (i in 1:nrow(species_info)) {
   tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_info$binomial)[i])
   if(nrow(tmp) > 2){
-    sf::sf_use_s2(TRUE)
     tmp <- st_convex_hull(st_union(tmp))
     range_coverage_df <- sum(st_area(st_make_valid(tmp)))
     species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP1"] <- as.numeric(range_coverage_df)
@@ -115,6 +114,7 @@ for (i in 1:nrow(species_info)) {
 
 save(species_info, file = "data/species_info_incomplete.Rdata")
 
+# Downloading of the GBIF occurrences and calculation of the MCP2 will be done in a different script to be run on the HPC
 # #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
 # #This step is executed in a different script to be run on the cluster to download more occurrences
 # 
