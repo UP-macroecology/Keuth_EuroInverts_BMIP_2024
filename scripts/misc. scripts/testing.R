@@ -89,7 +89,8 @@ tream_convex <- st_as_sf(tream, coords=  c("Longitude_X", "Latitude_Y"), crs = 4
 maps::map('world')
 points(gbif$decimalLongitude, gbif$decimalLatitude, col='red',  pch=19)
 points(tream$Longitude_X, tream$Latitude_Y, col='blue',  pch=19)
-plot(tmp.sf, col = "green", add = T, pch = 19)
+plot(tmp5k, col = "green", add = T, pch = 19)
+plot(tmp10k, col = "red", add = T, pch = 19)
 
 
 gbif_test <- gbif[,c("decimalLongitude", "decimalLatitude", "species")]
