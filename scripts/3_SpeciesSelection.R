@@ -9,23 +9,13 @@
 #5. With the sub data set calculate a simple trend in abundance as log(N) ~ factor(site) + year
 #6. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites)
 #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
-#8. Prepare a dataframe with columns: name, taxonLevel, nsite1, nsite2, trend, MCP1, MCP2.
+#8. Prepare a dataframe with columns: name, taxonLevel, nsite1, nsite2, trend, MCP1, MCP2 and taxonomic levels
 
 # Load packages
 library(dplyr)
-library(adehabitatHR)
 library(sp)
 library(rgbif)
 library(sf)
-
-# # Load function for extracting p-value from model
-# #define function to extract overall p-value of model
-# overall_p <- function(my_model) {
-#   f <- summary(my_model)$fstatistic
-#   p <- pf(f[1],f[2],f[3],lower.tail=F)
-#   attributes(p) <- NULL
-#   return(p)
-# }
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
@@ -52,6 +42,9 @@ TREAM_sub <- subset(TREAM, TREAM$years_studysite >= 20)
 length(unique(TREAM_sub$binomial)) #762
 length(unique(TREAM_sub$site_id)) #202
 
+# save the smaller data set with the "good" data
+write.csv(TREAM_sub, "data/TREAM_gooddata.csv", row.names = F)
+
 #3. Calculate the number of sites on which each of these taxa is found ------------
 species_info <- TREAM_sub %>% group_by(binomial) %>% summarise(nsite1 = n_distinct(site_id))
 
@@ -67,7 +60,6 @@ species_info <- full_join(species_info, TREAM_sub2 %>% group_by(binomial) %>% su
 species_info$trend <- NA
 species_info$p.value <- NA
 species_info$std.error <- NA
-#species_info$R2 <- NA
 
 # loop for every species
 for (i in 1:length(unique(species_info$binomial))) {
@@ -104,13 +96,11 @@ TREAM_red_species <- subset(TREAM, TREAM$binomial %in% species_reduced$binomial)
 #extract species and coordinates
 TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
 
-save(TREAM.sp, file = "data/TREAM.sp.Rdata")
+save(TREAM.sp, file = "data/TREAM_gooddata_spatial.Rdata")
 
 # transform into sf object
 TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
 TREAM.sf <- st_make_valid(TREAM.sf)
-
-save(TREAM.sf, file = "data/TREAM_sf.Rdata")
 
 #extract species (only keep species with more than two distinct locations), obtain convex hull and calculate area
 for (i in 1:nrow(species_info)) {
@@ -123,7 +113,7 @@ for (i in 1:nrow(species_info)) {
   }
 }
 
-save(species_info, file = "data/species_info_incomplete_sf.Rdata")
+save(species_info, file = "data/species_info_incomplete.Rdata")
 
 # #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
 # #This step is executed in a different script to be run on the cluster to download more occurrences
@@ -185,111 +175,3 @@ save(species_info, file = "data/species_info_incomplete_sf.Rdata")
 # 
 # #save data set
 # #write.csv(species_info, file = "data/species_information_TREAM_sf.csv", row.names = F)
-# 
-# # Testing a second approach and calculating MCP using mcp function of adehabitatHR --------
-# 
-# #extract species and coordinates
-# TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
-# 
-# # Create a SpatialPointsDataFrame by defining the coordinates and adding the coordinate system
-# coordinates(TREAM.sp) <- c("Longitude_X", "Latitude_Y")
-# proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
-# 
-# #add coordinate system in UTM
-# #TREAM.sp <- spTransform(TREAM.sp, CRS("+proj=utm zone=33 +datum=WGS84 +units=m +no_defs"))
-# 
-# #Calculate the MCP area
-# TREAM.mcp <- mcp(TREAM.sp, percent = 100)
-# MCP <- as.data.frame(TREAM.mcp)
-# 
-# # join the data 
-# species_info <- full_join(species_info, MCP, by = join_by("binomial" == "id"))
-# 
-# # rename column
-# names(species_info)[names(species_info) == "area"] <- "MCP1"
-# 
-# #Plot the results
-# # library(maps)
-# # maps::map('world',xlim=c(-20,40), ylim=c(30,80))
-# # plot(TREAM.sp, col = "red", add = T)
-# # plot(TREAM.mcp)
-# # 
-# # library(scales) # Helps make polygons partly transparent using the alpha argument below
-# # plot(TREAM.sp, col = as.factor(TREAM.sp@data$binomial), pch = 16)
-# # plot(TREAM.mcp, col = alpha(1:5, 0.5), add = TRUE)
-# 
-# #save(species_info, file = "data/species_info_incomplete_mcp.Rdata")
-# 
-# # add the MCP in ha
-# TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
-# 
-# # Create a SpatialPointsDataFrame by defining the coordinates and CRS
-# coordinates(TREAM.sp) <- c("Longitude_X", "Latitude_Y")
-# proj4string(TREAM.sp) <- CRS("+init=epsg:4326") 
-# 
-# #transform to equal area projection (UTM)
-# TREAM.sp <- spTransform(TREAM.sp, CRS("+proj=utm zone=33 +datum=WGS84 +units=m +no_defs"))
-# 
-# #Calculate MCP
-# TREAM.mcp <- mcp(TREAM.sp, percent = 100)
-# MCP <- as.data.frame(TREAM.mcp)
-# 
-# # join the data 
-# species_info <- full_join(species_info, MCP, by = join_by("binomial" == "id"))
-# 
-# # rename column
-# names(species_info)[names(species_info) == "area"] <- "MCP1_ha"
-# 
-# #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP ---------
-# 
-# #add new column
-# species_info$MCP2 <- NA
-# 
-# # For each species download observations from GBIF, extract the coordinates and calculate MCP for species with more than three different locations
-# for (i in 1:length(unique(species_info$binomial))) {
-#   sp_name <- unique(species_info$binomial)[i]
-#   
-#   tmp <- occ_search(scientificName = sp_name, hasCoordinate=T, basisOfRecord='HUMAN_OBSERVATION', limit = 5000) 
-#   tmp <- tmp$data
-# 
-#   # calculates MCP only for species with more than three distinct sites
-#   if(length(unique(tmp$decimalLatitude)) > 3){
-#   #extract species and coordinates
-#   tmp.sp <- tmp[,c("species", "decimalLatitude", "decimalLongitude")]
-# 
-#   # Create a SpatialPointsDataFrame by defining the coordinates
-#   coordinates(tmp.sp) <- c("decimalLatitude", "decimalLongitude")
-# 
-#   #add coordinate system
-#   proj4string(Tmp.sp) <- CRS("+init=epsg:4326") 
-# 
-#   #Calculate MCP
-#   tmp.mcp <- mcp(tmp.sp, percent = 100)
-#   MCP <- as.data.frame(tmp.mcp)
-#   
-#   #add data to species information
-#   species_info[which(species_info$binomial == sp_name), "MCP2"] <- MCP[1,2]
-#   }
-# }
-# 
-# #save data set
-# write.csv(species_info, file = "data/species_information_TREAM_mcp.csv", row.names = F)
-# 
-# #Compare the two methods -----
-# #Load in mcp data set
-# species_mcp <- read.csv("data/species_information_TREAM_mcp.csv")
-# 
-# # conervt ha in m2
-# species_mcp$MCP1_m2 <- species_info$MCP1_ha * 10000
-# 
-# # join data sets
-# species_mcp <- full_join(species_mcp, species_info[,c("binomial", "MCP1")], by = "binomial")
-# 
-# #obtain differences
-# species_info$diff_MCP <- species_info$MCP1_m2 - species_info$MCP1.y
-# 
-# #convert into km2
-# species_info$diff_MCP <- species_info$diff_MCP/1000000
-# 
-# #obtain data summary
-# summary(species_info$diff_MCP)

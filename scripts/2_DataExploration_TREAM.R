@@ -14,8 +14,8 @@ library(dplyr)
 library(tidyverse)
 library(tibble)
 
-# load in data
-TREAM <- read.csv("data/TREAM_preprocessed.csv")
+# load in data ----
+TREAM <- read.csv("data/TREAM_zeros.csv")
 
 # obtain countries
 countries <- unique(TREAM$country)
@@ -38,6 +38,12 @@ ggplot(TREAM_info_countries, aes(x=country, y= no_studysites))+
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
   theme(axis.text.x = element_text(hjust = 0.5))
+
+ggplot(TREAM_info_countries, aes(y=country, x= no_studysites))+
+  geom_bar(stat = "identity")+
+  labs(x = "", y = "")+
+  theme_minimal() +
+  theme(axis.text = element_text(size = 18))
 
 # Time span and length ------
 
@@ -95,6 +101,14 @@ ggplot(data = completeness_timeseries_countries_long, aes(x = country, y = Year)
   theme(axis.text.x = element_text(hjust = 0.5))+
   scale_fill_manual("Sampled?", values = "#FF6666", labels = c("Yes", "No"))+
   ggtitle("Coverage of sampled years per country")
+
+ggplot(data = completeness_timeseries_countries_long, aes(x = country, y = Year)) +
+  geom_raster(aes(fill = sampled)) + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,vjust = 1, hjust = 1)) +
+  labs(x = "", y = "Year") +
+  theme(axis.text.x = element_text(hjust = 0.5), legend.position = "none", axis.title.y = element_text(size = 25), axis.text = element_text(size = 18))+
+  scale_fill_manual(values = "#FF6666")
 
 
 # Proportion of completeness for every country
