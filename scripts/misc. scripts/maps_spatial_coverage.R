@@ -1,4 +1,4 @@
-# maps for presentation
+# Maps for comparison of large study area to good subset to compare the spatial coverage of our good data
 
 #Load packages
 library(rworldmap)
