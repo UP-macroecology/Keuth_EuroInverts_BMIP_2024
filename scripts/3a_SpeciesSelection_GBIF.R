@@ -94,9 +94,6 @@ for (i in 1:nrow(species_info)) {
 # load in large data set to extract the taxonomic information of it
 TREAM <- read.csv("data/TREAM_zeros.csv")
 
-TREAM <- read.csv("data/TREAM_preprocessed.csv")
-load("data/species_info_incomplete_sf.Rdata")
-
 TREAM <- subset(TREAM, select = c("order", "family", "binomial"))
 TREAM <- TREAM[which(!is.na(TREAM$binomial)),]
 TREAM_taxonomic <- distinct(TREAM)
