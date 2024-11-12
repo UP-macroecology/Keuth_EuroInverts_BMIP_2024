@@ -1,15 +1,15 @@
 # Keuth_EuroInverts_BMIP_2024
 
-This repository contains the code for exploring and preprocessing the data on European Aquatic Freshwater Invertebrates, which was published in [Haase et al. 2023](https://www.nature.com/articles/s41586-023-06400-1#Sec24). This data will be used for the 2nd BMIP workshop in October 2024.
-The data can be found in the [Github repository of the study](https://github.com/Ewelti/EuroAquaticMacroInverts/tree/main). For the data exploration the authors provided us with a cleaned version of data set. The authors refer to this data set as TREAM (Time series of freshwater macroinvertebrate abundances and site characteristics of European streams and rivers). This name will also be used in the scripts.
+This repository contains the code for exploring and preprocessing the data on European Aquatic Freshwater Invertebrates (TREAM (Time series of freshwater macroinvertebrate abundances and site characteristics of European streams and rivers)), which was published by [Welti et al., 2024](https://www.nature.com/articles/s41597-024-03445-3). This data will be used for the 2nd BMIP workshop in October 2024.
+The data can be found [here](https://knb.ecoinformatics.org/view/doi%3A10.5063%2FF1NG4P4R).
 
 ## Workflow
 
 ### Preprocessing data
-*Script:* 1_DataPreprocessing.R
+*Script:* 1_DataCleaning_TREAM.R
 
-In this script the different files from the raw data from the different countries were joined to one data set. To the data set the column "country" was added.
-The column with the taxonomic information was modified to determine which data point was specified to which taxonomic level. Furthermore, if the specification was not clear the closest mutual taxonomic level of the options named was chosen and typos were removed. Every species detection was checked for its correctnes (misspelling or synonyms). For this the package *taxonize* was used and the species names were first checked using the taxnomic serial number (TSN) and the [Integrated Taxonomic Information System (ITIS)](https://www.itis.gov/). I chose this option since the other functions did not work but produced an error message. All species names that could not be found by the function were manually checked using [GBIF](https://www.gbif.org/).
+In this script the data set was cleaned by removing typos from certain columns, harmonizing taxonomic names and adding structural zeros to the data set.
+For the harmonization of the taxonomic names the package *taxonize* was used and the species names were first checked for correctness (misspelling or synonyms) using the taxnomic serial number (TSN) and the [Integrated Taxonomic Information System (ITIS)](https://www.itis.gov/). I chose this option since the other functions did not work but produced an error message. All species names that could not be found by the function were manually checked using [GBIF](https://www.gbif.org/). Furthermore, if the taxonomic specification was not clear the closest mutual taxonomic level of the named options was chosen and typos were removed. These steps were done with all taxonomic levels (i.e. species, genus, family, order). As the last step, structural zeros are added to the data set, since the data set does not contain any information about species absences. For this, it was assumed that if a species was recorded once at a study site, in all years without a presence of this species at this study site the species is absent.
 
 *Script:* 1a_DataPreprocessing_TREAM.R
 
