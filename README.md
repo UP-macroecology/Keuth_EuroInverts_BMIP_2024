@@ -23,6 +23,14 @@ In this script the global range extent as a Minimum Convex Polygon was calculate
 
 In this script the data set was explored based on temporal and spatial coverage for every country, the proportion of identification to the different taxonomic level for every country. The corresponding plots can be found in the Rmarkdown *Exploration_EuroInv.Rmd/.html*.
 
+*Script:* ExploreSpeciesData.Rmd
+
+This Rmarkdown further deals with the species selection (finding 16? species with a good data coverage). For this different exploration steps are applied based on the range size, range coverage, abundance trends etc.
+
 ### ShinyApp
 
 The folder *ShinyApp* contains the script and data required for the ShinyApp to run. The ShinyApp is supposed to help with finding a good subset of the data set, which has a good spatial and temporal cover for different species. Different criteria can be chosen to subselect the data set.
+
+### misc. scripts
+
+In this folder several different scripts are included that contain different scripts that are used to explore the data set and test out different methods and take decisions. Here, one can find the the Rmarkdown *Exploration_EuroInv.Rmd/.html*. This folder also includes scripts for plotting the spatial coverage of the data, testing the effect of the number of downloaded occurrences as well as trying to find the errors when calculating the MCP using the GBIF data set.
