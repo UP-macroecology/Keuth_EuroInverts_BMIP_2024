@@ -8,7 +8,7 @@ load("/import/ecoc9z/data-zurell/keuth/Work/species_info_incomplete.Rdata")
 load("/import/ecoc9z/data-zurell/keuth/Work/TREAM_gooddata_spatial.Rdata")
 
 #set up cluster
-ncores <- 1
+ncores <- 40
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
