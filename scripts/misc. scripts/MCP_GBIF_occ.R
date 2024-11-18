@@ -1,6 +1,7 @@
 # test number of occurrences
 
 library(sf)
+library(dplyr)
 
 # prepare data sets
 
@@ -22,6 +23,7 @@ extra_species <- c("Chironomus riparius", "Corbicula fluminalis", "Corbicula flu
                    "Procambarus clarkii", "Radix auricularia", "Rhantus suturalis") 
 
 for(i in 1:length(extra_species)){
+  print(extra_species[i])
   #for 5k
   load(paste0("data/MCP/tmp.sf_", extra_species[i], ".Rdata"))
   tmp.sf <- st_convex_hull(st_union(tmp.sf))
@@ -52,6 +54,8 @@ for(i in 1:length(extra_species)){
   GBIF_MCP_20k[which(GBIF_MCP_20k$binomial == extra_species[i]), "MCP2"] <- as.numeric(range_coverage_df)
   }
 }
+
+save(GBIF_MCP_5k, GBIF_MCP_10k, GBIF_MCP_20k, file = "data/GBIF_MCP_k.Rdata")
 
 # calculate differences in MCP
 GBIF_MCP_5k$MCP2_perc <- 1
@@ -97,16 +101,24 @@ GBIF_top100_10k <- species_info %>% select(c(binomial, perc_range_coverage_10k))
 GBIF_top100_20k <- species_info %>% select(c(binomial, perc_range_coverage_20k)) %>% arrange(desc(perc_range_coverage_20k)) %>% slice(1:100)
 
 #check for differences in the data set
-length(which(GBIF_top100_5k$binomial != GBIF_top100_10k$binomial))
-length(which(GBIF_top100_10k$binomial != GBIF_top100_20k$binomial))
+length(which(unique(GBIF_top100_5k$binomial) != unique(GBIF_top100_10k$binomial)))
+length(which(unique(GBIF_top100_10k$binomial) != unique(GBIF_top100_20k$binomial)))
 
-# Extract species with "Inf" values
-weird_species <- GBIF_top100_10k[which(GBIF_top100_10k$perc_range_coverage_10k == Inf), "binomial"]
+# create a table which lists the top 100 with their respective range cover in alphabetical order
 
-# extract values from the large data set
-weird_species_GBIF <- GBIF_MCP2[which(GBIF_MCP2$binomial %in% weird_species),]
+GBIF_top100_5k <- GBIF_top100_5k %>% arrange(binomial) %>% rename(binomial_5k = binomial)
+GBIF_top100_10k <- GBIF_top100_10k %>% arrange(binomial) %>% rename(binomial_10k = binomial)
+GBIF_top100_20k <- GBIF_top100_20k %>% arrange(binomial) %>% rename(binomial_20k = binomial)
 
-load("data/MCP/tmp.sf_Chironomus riparius.Rdata")
+# cbind data sets together
+GBIF_top100 <- bind_cols(GBIF_top100_5k, GBIF_top100_10k, GBIF_top100_20k) %>% relocate(binomial_10k, binomial_20k, .after = binomial_5k)
+
+# merge data sets
+GBIF_top100_2.0 <- full_join(GBIF_top100_5k, GBIF_top100_10k, join_by(binomial_5k == binomial_10k)) %>% full_join(., GBIF_top100_20k, join_by(binomial_5k == binomial_20k))
+
+# save both options
+write.csv(GBIF_top100, "data/TREAM_top100_different_no_occurrences_GBIF.csv", row.names = F)
+write.csv(GBIF_top100_2.0, "data/TREAM_top100_different_no_occurrences_GBIF_2.0.csv", row.names = F)
 
 # library(ggplot2)
 # 
