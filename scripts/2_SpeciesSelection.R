@@ -43,7 +43,7 @@ length(unique(TREAM_sub$binomial)) #762
 length(unique(TREAM_sub$site_id)) #202
 
 # save the smaller data set with the "good" data
-write.csv(TREAM_sub, "data/TREAM_gooddata.csv", row.names = F)
+#write.csv(TREAM_sub, "data/TREAM_gooddata.csv", row.names = F)
 
 #3. Calculate the number of sites on which each of these taxa is found ------------
 species_info <- TREAM_sub %>% group_by(binomial) %>% summarise(nsite1 = n_distinct(site_id))
@@ -96,7 +96,7 @@ TREAM_red_species <- subset(TREAM, TREAM$binomial %in% species_reduced$binomial)
 #extract species and coordinates
 TREAM.sp <- TREAM_red_species[,c("binomial", "Longitude_X", "Latitude_Y")]
 
-save(TREAM.sp, file = "data/TREAM_gooddata_spatial.Rdata")
+#save(TREAM.sp, file = "data/TREAM_gooddata_spatial.Rdata")
 
 # transform into sf object
 TREAM.sf <- st_as_sf(TREAM.sp, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
@@ -110,9 +110,128 @@ for (i in 1:nrow(species_info)) {
     range_coverage_df <- sum(st_area(st_make_valid(tmp)))
     species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP1"] <- as.numeric(range_coverage_df)
   }
+  rm(tmp)
+}
+
+# add taxonKey to later download the Gbif occurrences
+species_info$taxonKey <- NA
+
+for (i in 1:nrow(species_info)) {
+  tmp <- name_backbone(species_info$binomial[i])
+  if("usageKey" %in% names(tmp)){
+  species_info$taxonKey[i] <- tmp$usageKey
+  } else {
+    species_info$taxonKey[i] <- NA
+  }
+  rm(tmp)
 }
 
 save(species_info, file = "data/species_info_incomplete.Rdata")
 
 # #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP -----
-# Downloading of the GBIF occurrences and calculation of the MCP2 will be done in a different script to be run on the HPC
+
+# remove all species with NA in taxonKey
+# species_gbif <- species_info[which(!is.na(species_info$taxonKey)),]
+# 
+# occ_download(
+#   pred_in("taxonKey", species_gbif$taxonKey),
+#   pred("hasCoordinate", TRUE),
+#   pred("occurrenceStatus","PRESENT"),
+#   pred_in("basisOfRecord", c('HUMAN_OBSERVATION', "MACHINE_OBSERVATION", "OBSERVATION", "OCCURRENCE")),
+#   format = "SIMPLE_CSV"
+# )
+# 
+# occ_download_wait('0049729-251009101135966')
+
+# save the occurrence data
+occ <- occ_download_get('0049729-251009101135966') %>%
+  occ_download_import()
+
+saveRDS(occ,file = "data/gbif_occurrences.rds")
+
+occ <- readRDS("data/gbif_occurrences.rds")
+
+# clean the occurrences a bit
+occ_cleaned <- occ %>% dplyr::filter(!(is.na(decimalLatitude) | is.na(decimalLongitude)),           # only records with coords
+                                     !(decimalLatitude == decimalLongitude | decimalLatitude == 0 | decimalLongitude == 0),  # coords should not be equal
+                                     !(year < 1900 | year > 2025))
+
+# Store the cleaned point locations
+occ_cleaned <- occ[occ_cleaned$.summary,]
+
+# Remove columns which contain additional information
+occ_cleaned <- occ_cleaned %>% select(-one_of(c("gbifID", "datasetKey", "occurrenceID", "kingdom", "phylum", "infraspecificEpithet", "taxonRank", 
+                                                "verbatimScientificNameAuthorship", "publishingOrgKey", "issue", "occurrenceStatus", "individualCount", "collectionCode", 
+                                                "identifiedBy", "dateIdentified", "license", "rightsHolder", "recordedBy", "typeStatus", "establishmentMeans", "lastInterpreted", 
+                                                "mediaType")))
+
+# Save data set
+saveRDS(occ_cleaned, file = "data/gbif_occurrences_cleaned.rds")
+
+#GBIF Occurrence Download https://www.gbif.org/occurrence/download/0049729-251009101135966 Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2025-10-22
+
+# Calculate the MCP for every single species using the GBIF occurrence points
+occ_gbif <- readRDS("data/gbif_occurrences_cleaned.rds")
+load("data/species_info_incomplete.Rdata")
+load("data/TREAM_gooddata_spatial.Rdata")
+species_info$MCP2 <- NA
+
+#extract species and coordinates
+occ_gbif.sp <- occ_gbif[,c("species", "decimalLongitude", "decimalLatitude")]
+
+for (i in 1:nrow(species_info)) {
+  #extract species (only keep species with more than two distinct locations), obtain convex hull and calculate area
+  tmp <- subset(occ_gbif.sp, occ_gbif.sp$species == unique(species_info$binomial)[i])
+  tmp_TREAM <- subset(TREAM.sp, TREAM.sp$binomial == unique(species_info$binomial)[i])
+  
+  #transform into sf object
+  tmp_TREAM.sf <- st_as_sf(tmp_TREAM, coords=  c("Longitude_X", "Latitude_Y"), crs = 4326)
+  tmp_TREAM.sf <- st_make_valid(tmp_TREAM.sf)
+  
+  # rename column
+  names(tmp_TREAM.sf)[names(tmp_TREAM.sf) == "binomial"] <- "species"
+  
+  #Transform GBIF data into sf file if occurrences are present
+  if(length(unique(tmp$decimalLatitude)) >= 1){
+
+    # transform into sf object
+    tmp_gbif.sf <- st_as_sf(tmp, coords=  c("decimalLongitude", "decimalLatitude"), crs = 4326)
+    tmp_gbif.sf <- st_make_valid(tmp_gbif.sf)
+    
+    # add data occurrences and gbif data together
+    tmp.sf <- rbind(tmp_gbif.sf, tmp_TREAM.sf)
+    tmp.sf <- st_make_valid(tmp.sf)
+  } else {
+    # if no occurrences for the species is available, only use the TREAM occurrences
+    tmp.sf <- st_make_valid(tmp_TREAM.sf)
+  }
+    if(nrow(tmp) > 2){
+      tmp.sf <- st_convex_hull(st_union(tmp.sf))
+      range_coverage_df <- sum(st_area(st_make_valid(tmp.sf)))
+      species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
+    }
+    rm(tmp)
+}
+
+# add taxonomic information as well as 
+# load in large data set to extract the taxonomic information of it
+TREAM <- read.csv("data/TREAM_zeros.csv")
+
+TREAM <- subset(TREAM, select = c("order", "family", "binomial"))
+TREAM <- TREAM[which(!is.na(TREAM$binomial)),]
+TREAM_taxonomic <- distinct(TREAM)
+
+# merge the data set by the binomial column
+species_info <- merge(species_info, TREAM_taxonomic, by = "binomial")
+
+# change 0 values to NA (data set was not available for the 0s meaning we don't have any information)
+species_info[which(species_info$MCP2 == 0), "MCP2"] <- NA
+
+# calculate percentage of global range covered by our data
+species_info$perc_range_coverage <- round((species_info$MCP1/species_info$MCP2)*100,2)
+
+# change column name
+names(species_info)[names(species_info) == "binomial"] <- "name"
+
+# save data set
+write.csv(species_info, "data/species_information_TREAM.csv", row.names = F)
