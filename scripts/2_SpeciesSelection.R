@@ -6,16 +6,19 @@
 #2. Classify the taxonLevel for each , i.e. which of these are species and which are genera or families. (This step can be excluded as we currently only consider species level)
 #3. Calculate the number of sites on which each of these taxa is found
 #4. Calculate the equivalent number of sites in the full dataset
-#5. With the sub data set calculate a simple trend in abundance as log(N) ~ factor(site) + year
-#6. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites)
-#7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
-#8. Prepare a dataframe with columns: name, taxonLevel, nsite1, nsite2, trend, MCP1, MCP2 and taxonomic levels
+#5. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites)
+#6. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP
+#7. Pre select the species (non-flying insects)
+#8. Classify the range extent in small, medium, large
+#9. Apply second filtering step (have to be present on more than 10 sites and cover 25% of the global range)
+#10. With the sub data set calculate a simple trend in abundance as log(N) ~ factor(site) + year
 
 # Load packages
 library(dplyr)
 library(sp)
 library(rgbif)
 library(sf)
+library(glmmTMB)
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
@@ -54,34 +57,7 @@ TREAM_sub2 <- subset(TREAM, TREAM$binomial %in% unique(species_info$binomial))
 
 species_info <- full_join(species_info, TREAM_sub2 %>% group_by(binomial) %>% summarise(nsite2 = n_distinct(site_id)), by = "binomial")
 
-#5. With the sub data set calculate a simple trend in abundance as log(N) ~ factor(site) + year -----------
-
-# Add column to data set with all information
-species_info$trend <- NA
-species_info$p.value <- NA
-species_info$std.error <- NA
-
-# loop for every species
-for (i in 1:length(unique(species_info$binomial))) {
-  tmp <-  subset(TREAM_sub, TREAM_sub$binomial == unique(species_info$binomial)[i]) #extract data of single species
-  
-  # use a different model when only data for one study site is available (linear model can't calculate regression over one level)
-  if(length(unique(tmp$site_id)) > 1){
-  model <- lm(log(abundance + 1) ~ factor(site_id) + year, data = tmp)
-  species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
-  species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"] #overall_p(model)
-  species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
-  #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
-  } else {
-    model <- lm(log(abundance + 1) ~ year, data = tmp)
-    species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
-    species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"]# overall_p(model)
-    species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
-    #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
-  }
-}
-
-#6. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites) ----------
+#5. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites) ----------
 
 #add GPS data of study sites
 site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv")
@@ -119,16 +95,16 @@ species_info$taxonKey <- NA
 for (i in 1:nrow(species_info)) {
   tmp <- name_backbone(species_info$binomial[i])
   if("usageKey" %in% names(tmp)){
-  species_info$taxonKey[i] <- tmp$usageKey
+    species_info$taxonKey[i] <- tmp$usageKey
   } else {
     species_info$taxonKey[i] <- NA
   }
   rm(tmp)
 }
 
-save(species_info, file = "data/species_info_incomplete.Rdata")
+#save(species_info, file = "data/species_info_incomplete.Rdata")
 
-# #7. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP -----
+# #6. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP -----
 
 # remove all species with NA in taxonKey
 # species_gbif <- species_info[which(!is.na(species_info$taxonKey)),]
@@ -143,36 +119,36 @@ save(species_info, file = "data/species_info_incomplete.Rdata")
 # 
 # occ_download_wait('0049729-251009101135966')
 
-# save the occurrence data
-occ <- occ_download_get('0049729-251009101135966') %>%
-  occ_download_import()
-
-saveRDS(occ,file = "data/gbif_occurrences.rds")
-
-occ <- readRDS("data/gbif_occurrences.rds")
-
-# clean the occurrences a bit
-occ_cleaned <- occ %>% dplyr::filter(!(is.na(decimalLatitude) | is.na(decimalLongitude)),           # only records with coords
-                                     !(decimalLatitude == decimalLongitude | decimalLatitude == 0 | decimalLongitude == 0),  # coords should not be equal
-                                     !(year < 1900 | year > 2025))
-
-# Store the cleaned point locations
-occ_cleaned <- occ[occ_cleaned$.summary,]
-
-# Remove columns which contain additional information
-occ_cleaned <- occ_cleaned %>% select(-one_of(c("gbifID", "datasetKey", "occurrenceID", "kingdom", "phylum", "infraspecificEpithet", "taxonRank", 
-                                                "verbatimScientificNameAuthorship", "publishingOrgKey", "issue", "occurrenceStatus", "individualCount", "collectionCode", 
-                                                "identifiedBy", "dateIdentified", "license", "rightsHolder", "recordedBy", "typeStatus", "establishmentMeans", "lastInterpreted", 
-                                                "mediaType")))
-
-# Save data set
-saveRDS(occ_cleaned, file = "data/gbif_occurrences_cleaned.rds")
+# # save the occurrence data
+# occ <- occ_download_get('0049729-251009101135966') %>%
+#   occ_download_import()
+# 
+# saveRDS(occ,file = "data/gbif_occurrences.rds")
+# 
+# occ <- readRDS("data/gbif_occurrences.rds")
+# 
+# # clean the occurrences a bit
+# occ_cleaned <- occ %>% dplyr::filter(!(is.na(decimalLatitude) | is.na(decimalLongitude)),           # only records with coords
+#                                      !(decimalLatitude == decimalLongitude | decimalLatitude == 0 | decimalLongitude == 0),  # coords should not be equal
+#                                      !(year < 1900 | year > 2025))
+# 
+# # Store the cleaned point locations
+# #occ_cleaned <- occ[occ_cleaned$.summary,]
+# 
+# # Remove columns which contain additional information
+# occ_cleaned <- occ_cleaned %>% select(-one_of(c("gbifID", "datasetKey", "occurrenceID", "kingdom", "phylum", "infraspecificEpithet", "taxonRank", 
+#                                                 "verbatimScientificNameAuthorship", "publishingOrgKey", "issue", "occurrenceStatus", "individualCount", "collectionCode", 
+#                                                 "identifiedBy", "dateIdentified", "license", "rightsHolder", "recordedBy", "typeStatus", "establishmentMeans", "lastInterpreted", 
+#                                                 "mediaType")))
+# 
+# # Save data set
+# saveRDS(occ_cleaned, file = "data/gbif_occurrences_cleaned.rds")
 
 #GBIF Occurrence Download https://www.gbif.org/occurrence/download/0049729-251009101135966 Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2025-10-22
 
 # Calculate the MCP for every single species using the GBIF occurrence points
 occ_gbif <- readRDS("data/gbif_occurrences_cleaned.rds")
-load("data/species_info_incomplete.Rdata")
+#load("data/species_info_incomplete.Rdata")
 load("data/TREAM_gooddata_spatial.Rdata")
 species_info$MCP2 <- NA
 
@@ -193,7 +169,7 @@ for (i in 1:nrow(species_info)) {
   
   #Transform GBIF data into sf file if occurrences are present
   if(length(unique(tmp$decimalLatitude)) >= 1){
-
+    
     # transform into sf object
     tmp_gbif.sf <- st_as_sf(tmp, coords=  c("decimalLongitude", "decimalLatitude"), crs = 4326)
     tmp_gbif.sf <- st_make_valid(tmp_gbif.sf)
@@ -205,12 +181,12 @@ for (i in 1:nrow(species_info)) {
     # if no occurrences for the species is available, only use the TREAM occurrences
     tmp.sf <- st_make_valid(tmp_TREAM.sf)
   }
-    if(nrow(tmp) > 2){
-      tmp.sf <- st_convex_hull(st_union(tmp.sf))
-      range_coverage_df <- sum(st_area(st_make_valid(tmp.sf)))
-      species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
-    }
-    rm(tmp)
+  if(nrow(tmp) > 2){
+    tmp.sf <- st_convex_hull(st_union(tmp.sf))
+    range_coverage_df <- sum(st_area(st_make_valid(tmp.sf)))
+    species_info[which(species_info$binomial == unique(species_info$binomial)[i]), "MCP2"] <- as.numeric(range_coverage_df)
+  }
+  rm(tmp)
 }
 
 # add taxonomic information as well as 
@@ -233,5 +209,136 @@ species_info$perc_range_coverage <- round((species_info$MCP1/species_info$MCP2)*
 # change column name
 names(species_info)[names(species_info) == "binomial"] <- "name"
 
+# save the data
+write.csv(species_info, "data/species_information_TREAM_before_selection.csv", row.names = F)
+
+species_info <- read.csv("data/species_information_TREAM_before_selection.csv", header = T)
+
+#7 Pre-select the species
+# Removing non-insect species, 
+
+insectGroups <- c("Coleoptera",
+                  "Diptera",
+                  "Ephemeroptera",
+                  "Heteroptera" ,
+                  "Megaloptera",
+                  "Plecoptera", 
+                  "Trichoptera")
+
+species_info_final <- subset(species_info, order %in% insectGroups)
+
+# 8. Calcualte the range classes
+species_info_final <- species_info_final %>% mutate(range_class = factor(dplyr::ntile(MCP2, 3),
+                              
+                              levels = 1:3,
+                              
+                              labels = c("small", "medium", "large")))
+
+
+# 9. Apply second filtering step
+
+# be present on more than 10 sites and cover over 25% of the global range
+species_info_final <- subset(species_info_final, nsite1 >= 10 & perc_range_coverage >= 25)
+
+# rename the columns
+names(species_info_final)[names(species_info_final) == "name"] <- "binomial"
+
+#10. With the sub data set calculate a simple trend in abundance as log(N) ~ year -----------
+
+# View(TREAM_sub)
+# 
+# TREAM_sub$occupancy <- 0
+# 
+# TREAM_sub[which(TREAM_sub$abundance > 0), "occupancy"] <- 1
+
+# Add column to data set with all information
+species_info_final$trend <- NA
+species_info_final$p.value <- NA
+species_info_final$std.error <- NA
+#species_info_final$Intercept <- NA
+
+# loop for every species
+pdf("plots/abundance_trends_TREAM_jitter_lm_25percent.pdf")
+for (i in 1:length(unique(species_info_final$binomial))) {
+  tmp <-  subset(TREAM_sub, TREAM_sub$binomial == unique(species_info_final$binomial)[i]) #extract data of single species
+  
+  # use a different model when only data for one study site is available (linear model can't calculate regression over one level)
+  #if(length(unique(tmp$site_id)) > 1){
+  model <- lm(log(abundance + 1) ~ year, data = tmp)
+  #model <- glm(occupancy ~ year, data = tmp, family = binomial())
+  #model <- glmmTMB(abundance ~ year + (1 | site_id), family = tweedie(link = "log"), data = tmp)
+  species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
+  species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"] #overall_p(model)
+  species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
+  #species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"Intercept"] <- model[["coefficients"]][["(Intercept)"]] #summary(model)$sigma #summary(model)$coefficients[, 2]
+  
+  plot(log(abundance + 1) ~ jitter(year), data = tmp, main = unique(tmp$binomial))
+  abline(lm(log(abundance + 1) ~ year, data = tmp), col = "red", lwd = 2)
+  
+  # 
+  # yocc <- predict(model, list(year = seq(min(tmp$year), max(tmp$year), 1)),type="response")
+  # 
+  # plot(occupancy ~ year, data = tmp, main = unique(tmp$binomial))
+  # lines(seq(min(tmp$year), max(tmp$year), 1), yocc, col = "red", lwd = 2)
+  
+  #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
+  # } else {
+  #   model <- lm(log(abundance + 1) ~ year, data = tmp)
+  #   #model <- glmmTMB(N ~ Year + (1 | site), family = nbinom2(link = "log"), data = tmp)
+  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
+  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"]# overall_p(model)
+  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
+  #   #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
+  # }
+}
+dev.off()
+
+europe <- readRDS("data/Europe_vect.rds")
+europe <- unwrap(europe)
+
+pdf("plots/map_TREAM_points.pdf")
+for (i in 1:length(unique(species_info_final$binomial))) {
+  tmp <-  subset(TREAM.sp, TREAM.sp$binomial == unique(species_info_final$binomial)[i]) #extract data of single species
+  
+  plot(europe, col = 'lightgrey', main = unique(tmp$"binomial"))
+  points(tmp$Longitude_X, tmp$Latitude_Y, col='red',  pch=19)
+}
+dev.off
+
 # save data set
-write.csv(species_info, "data/species_information_TREAM.csv", row.names = F)
+write.csv(species_info_final, "data/species_information_TREAM_lm_final_25percent.csv", row.names = F)
+
+
+# trend calculation
+nyrs = 2020 - 1990
+
+species_info_final <- species_info_final %>%
+  
+  tidyr::drop_na() %>%
+  
+  mutate(perc_trend = 100 * (exp(trend * nyrs) - 1))
+
+
+species_info_final <- species_info_final %>% mutate(trend_class = case_when(is.na(p.value) | is.na(perc_trend)            ~ NA_character_,
+                                 
+                                 perc_trend >=  1            ~ "increasing",
+                                 
+                                 perc_trend <= -1            ~ "declining",
+                                 
+                                 abs(perc_trend) < 1 ~ "stable",
+                                 
+                                 TRUE ~ "other"))
+
+table(species_info_final$trend_class, species_info_final$range_class)
+
+species_groups <- species_info_final %>% group_by(trend_class, range_class) %>% group_split()
+
+View(species_groups[[5]])
+
+# Pilot species: medium & increasing
+# "Agapetus ochripes" -> looks okay
+# "Brachyptera risi"        
+# "Hydraena gracilis"
+# "Molanna angustata" -< exclude because the spatial distribution is not that representative
+# "Protonemura meyeri"
+# Neomura avicularis
