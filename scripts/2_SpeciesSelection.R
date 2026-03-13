@@ -18,7 +18,7 @@ library(dplyr)
 library(sp)
 library(rgbif)
 library(sf)
-library(glmmTMB)
+library(terra)
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
@@ -245,17 +245,10 @@ names(species_info_final)[names(species_info_final) == "name"] <- "binomial"
 
 #10. With the sub data set calculate a simple trend in abundance as log(N) ~ year -----------
 
-# View(TREAM_sub)
-# 
-# TREAM_sub$occupancy <- 0
-# 
-# TREAM_sub[which(TREAM_sub$abundance > 0), "occupancy"] <- 1
-
 # Add column to data set with all information
 species_info_final$trend <- NA
 species_info_final$p.value <- NA
 species_info_final$std.error <- NA
-#species_info_final$Intercept <- NA
 
 # loop for every species
 pdf("plots/abundance_trends_TREAM_jitter_lm_25percent.pdf")
@@ -263,43 +256,26 @@ for (i in 1:length(unique(species_info_final$binomial))) {
   tmp <-  subset(TREAM_sub, TREAM_sub$binomial == unique(species_info_final$binomial)[i]) #extract data of single species
   
   # use a different model when only data for one study site is available (linear model can't calculate regression over one level)
-  #if(length(unique(tmp$site_id)) > 1){
   model <- lm(log(abundance + 1) ~ year, data = tmp)
-  #model <- glm(occupancy ~ year, data = tmp, family = binomial())
-  #model <- glmmTMB(abundance ~ year + (1 | site_id), family = tweedie(link = "log"), data = tmp)
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"] #overall_p(model)
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
-  #species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"Intercept"] <- model[["coefficients"]][["(Intercept)"]] #summary(model)$sigma #summary(model)$coefficients[, 2]
   
+  # Plot the abundance trend calculations
   plot(log(abundance + 1) ~ jitter(year), data = tmp, main = unique(tmp$binomial))
   abline(lm(log(abundance + 1) ~ year, data = tmp), col = "red", lwd = 2)
-  
-  # 
-  # yocc <- predict(model, list(year = seq(min(tmp$year), max(tmp$year), 1)),type="response")
-  # 
-  # plot(occupancy ~ year, data = tmp, main = unique(tmp$binomial))
-  # lines(seq(min(tmp$year), max(tmp$year), 1), yocc, col = "red", lwd = 2)
-  
-  #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
-  # } else {
-  #   model <- lm(log(abundance + 1) ~ year, data = tmp)
-  #   #model <- glmmTMB(N ~ Year + (1 | site), family = nbinom2(link = "log"), data = tmp)
-  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
-  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"]# overall_p(model)
-  #   species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
-  #   #species_info[which(species_info$binomial == unique(species_info$binomial)[i]),"R2"] <- summary(model)$r.squared
-  # }
 }
 dev.off()
 
-europe <- readRDS("data/Europe_vect.rds")
+# Plot the map of data distribution
+europe <- readRDS("data/Europe_vect.rds") # I already had this data set prepared
 europe <- unwrap(europe)
 
 pdf("plots/map_TREAM_points.pdf")
 for (i in 1:length(unique(species_info_final$binomial))) {
   tmp <-  subset(TREAM.sp, TREAM.sp$binomial == unique(species_info_final$binomial)[i]) #extract data of single species
   
+  # plot the occurrences in europe
   plot(europe, col = 'lightgrey', main = unique(tmp$"binomial"))
   points(tmp$Longitude_X, tmp$Latitude_Y, col='red',  pch=19)
 }
@@ -308,8 +284,7 @@ dev.off
 # save data set
 write.csv(species_info_final, "data/species_information_TREAM_lm_final_25percent.csv", row.names = F)
 
-
-# trend calculation
+# trend classification
 nyrs = 2020 - 1990
 
 species_info_final <- species_info_final %>%
@@ -334,11 +309,3 @@ table(species_info_final$trend_class, species_info_final$range_class)
 species_groups <- species_info_final %>% group_by(trend_class, range_class) %>% group_split()
 
 View(species_groups[[5]])
-
-# Pilot species: medium & increasing
-# "Agapetus ochripes" -> looks okay
-# "Brachyptera risi"        
-# "Hydraena gracilis"
-# "Molanna angustata" -< exclude because the spatial distribution is not that representative
-# "Protonemura meyeri"
-# Neomura avicularis
