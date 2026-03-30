@@ -210,7 +210,7 @@ species_info$perc_range_coverage <- round((species_info$MCP1/species_info$MCP2)*
 names(species_info)[names(species_info) == "binomial"] <- "name"
 
 # save the data
-write.csv(species_info, "data/species_information_TREAM_before_selection.csv", row.names = F)
+#write.csv(species_info, "data/species_information_TREAM_before_selection.csv", row.names = F)
 
 species_info <- read.csv("data/species_information_TREAM_before_selection.csv", header = T)
 
@@ -282,30 +282,4 @@ for (i in 1:length(unique(species_info_final$binomial))) {
 dev.off
 
 # save data set
-write.csv(species_info_final, "data/species_information_TREAM_lm_final_25percent.csv", row.names = F)
-
-# trend classification
-nyrs = 2020 - 1990
-
-species_info_final <- species_info_final %>%
-  
-  tidyr::drop_na() %>%
-  
-  mutate(perc_trend = 100 * (exp(trend * nyrs) - 1))
-
-
-species_info_final <- species_info_final %>% mutate(trend_class = case_when(is.na(p.value) | is.na(perc_trend)            ~ NA_character_,
-                                 
-                                 perc_trend >=  1            ~ "increasing",
-                                 
-                                 perc_trend <= -1            ~ "declining",
-                                 
-                                 abs(perc_trend) < 1 ~ "stable",
-                                 
-                                 TRUE ~ "other"))
-
-table(species_info_final$trend_class, species_info_final$range_class)
-
-species_groups <- species_info_final %>% group_by(trend_class, range_class) %>% group_split()
-
-View(species_groups[[5]])
+write.csv(species_info_final, "data/species_information_TREAM_lm.csv", row.names = F)

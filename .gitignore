@@ -6,3 +6,7 @@ data
 Paper + Information
 plots
 docs
+*.html
+*.Rproj
+*.zip
+*.jpg
