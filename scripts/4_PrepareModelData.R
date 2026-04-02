@@ -1,52 +1,90 @@
-# Prepare the data from the pilot species for BMIP
-# at 1 and 10km resolution
+# Preparation of abundance time series of the pilot species for BMIP
+# Data should be given in two spatial resolutions (matching to the climate data): 1km, 10km
 
 # Load packages
 library(terra)
-library(rworldmap)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 # Read in data
-TREAM <- read.csv("data/TREAM_gooddata.csv", header = T)
-site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv")
+TREAM <- read.csv("data/TREAM_gooddata.csv", header = T) #only data after 1990 and study sites with more than 20 years of sampling
+site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv") # GPS coordinates from the study site
 
-# extract modelled species
-pilot_data <- subset(TREAM, TREAM$binomial == "Agapetus ochripes")
+# extract pilot species
+pilot_species_df <- subset(TREAM, TREAM$binomial == "Agapetus ochripes")
 
-# add GPS locations to the data
-pilot_data <- merge(pilot_data, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y", "unit")], by = "site_id")
+# add GPS locations & sampling unit to the data
+pilot_species_df <- merge(pilot_species_df, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y", "unit")], by = "site_id")
 
-test <- vect(pilot_data[,c(17:18,14)],geom=c("Longitude_X", "Latitude_Y"))
-test2 <- project(test, "EPSG:3035")
+# Transform the data into a spatial object to reproject them
+pilot_species <- vect(pilot_species_df, geom=c("Longitude_X", "Latitude_Y"))
+pilot_species <- project(pilot_species, "EPSG:3035")
 
-plot(test)
+# extract the reprojected coordinates from the spatial data frame
+coords <- as.data.frame(crds(pilot_species))
 
-newmap <- getMap(resolution = "low")
-new_extent <- ext(-10, 34, 28, 70.06484375)
-europe_vect_cropped <- crop(r, new_extent)
-plot(newmap, bg="white", xlim = c(-10, 34), ylim = c(35, 70), asp = 1,lwd=wv)
+# merge with original data frame
+pilot_species_df <- cbind(pilot_species_df, coords)
 
-r <- vect(newmap)
+# I now create a spatraster object that has the same extent and crs as europe
+mask_1km <- rast(ext(2479357.46078533, 6496360.77332511, 999661.06552765, 5337308.89627766), resolution = 1000, 
+             crs = "EPSG:3035") # 1km resolution
+mask_10km <- rast(ext(2479357.46078533, 6496360.77332511, 999661.06552765, 5337308.89627766), resolution = 10000, 
+                 crs = "EPSG:3035") # 1km resolution
 
-v <- project(europe_vect_cropped, "EPSG:3035")
-plot(v)
+# Well with this I have the plots over all years at the specific resolutions, but I need them separated for each year
+cells_1km <- cellFromXY(mask, cbind(pilot_species_df$x, pilot_species_df$y))
+cell_coords_1km <- xyFromCell(mask, cells_1km)
 
-r2 <- rast(
-  ext(v),        # match extent of vector
-  resolution = 1000,  # 1 km grid
-  crs = crs(v)
-)
+pilot_species_df_1km <- pilot_species_df %>% mutate(cell = cells_1km) %>% 
+  mutate(cell_x = cell_coords_1km[,1],
+         cell_y = cell_coords_1km[,2]) %>%
+  # clean data set
+  select(year, Species = binomial, siteID = site_id, country, abundance, unit, cell, cell_x, cell_y)
 
-r_out <- rasterize(test2, r2, field = "abundance")
-summary(r_out)
-plot(r_out)
-plot(!is.na(r_out))
+# clean the data set
 
-plot(ext(r_out), col="red")
-plot(ext(test2), add=TRUE, col="blue")
+# Well with this I have the plots over all years at the specific resolutions, but I need them separated for each year
+cells_10km <- cellFromXY(mask_10km, cbind(pilot_species_df$x, pilot_species_df$y))
+cell_coords_10km <- xyFromCell(mask_10km, cells_10km)
 
-crs(test2)
-crs(r_out)
+pilot_species_df_10km <- pilot_species_df %>% mutate(cell = cells_10km) %>% 
+  mutate(cell_x = cell_coords_10km[,1],
+         cell_y = cell_coords_10km[,2]) %>%
+  # clean data set
+  select(year, Species = binomial, siteID = site_id, country, abundance, unit, cell, cell_x, cell_y)
+
+# save both data sets
+write.csv(pilot_species_df_1km, file = "data/European_aquatic_invert_Agapetus_ochripes_1992_2019_1km.csv", row.names = F)
+write.csv(pilot_species_df_10km, file = "data/European_aquatic_invert_Agapetus_ochripes_1992_2019_10km.csv", row.names = F)
 
 
-r <- rast(test2, resolution = 1000)
-r_out <- rasterize(r, r2, field = "abundance")
+# 
+# # I now transform my spatvector object with the points into a spatraster
+# r_points <- rasterize(pilot_species, mask, field = "abundance", fun = sum, na.rm = TRUE)
+# 
+# plot(europe)
+# points(as.points(r_points), col = "red", cex = 0.3)
+# 
+# # create the 10km raster
+# # I now create a spatraster object that has the same extent and crs as europe
+# mask_10km <- rast(ext(europe), resolution = 10000, crs = crs(europe)) # 10km resolution
+# 
+# # I now transform my spatvector object with the points into a spatraster
+# r_points_10km <- rasterize(pilot_species, mask_10km, field = "abundance", fun = sum, na.rm = TRUE)
+# 
+# plot(europe)
+# points(as.points(r_points_10km), col = "red", cex = 0.3)
+# 
+# # I download data of the world, transform it into a spatvector object and crop it and project it into equal area projection
+# world_map <- ne_countries(scale = 50, returnclass = 'sf')
+# world_map <- vect(world_map)
+# new_extent <- ext(-10, 34, 32, 70.06484375)
+# europe <- crop(world_map, new_extent)
+# europe <- project(europe, "EPSG:3035")
+# 
+# v_lonlat <- as.polygons(e_lonlat, crs = "EPSG:4326")
+# e_proj <- project(new_extent, "EPSG:3035")
+# ext(europe)
+# 
+# # I now have the pilot_species and the map of europe both as spatvector and with the same crs
