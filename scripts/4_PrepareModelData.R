@@ -16,7 +16,7 @@ pilot_species_df <- subset(TREAM, TREAM$binomial == "Agapetus ochripes")
 # add GPS locations & sampling unit to the data
 pilot_species_df <- merge(pilot_species_df, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y", "unit")], by = "site_id")
 
-# Transform the data into a spatial object to reproject them
+# Transform the data into a spatial object to reproject it
 pilot_species <- vect(pilot_species_df, geom=c("Longitude_X", "Latitude_Y"))
 pilot_species <- project(pilot_species, "EPSG:3035")
 
@@ -26,28 +26,28 @@ coords <- as.data.frame(crds(pilot_species))
 # merge with original data frame
 pilot_species_df <- cbind(pilot_species_df, coords)
 
-# I now create a spatraster object that has the same extent and crs as europe
+# create a spatraster object that has the same extent and crs as europe
 mask_1km <- rast(ext(2479357.46078533, 6496360.77332511, 999661.06552765, 5337308.89627766), resolution = 1000, 
              crs = "EPSG:3035") # 1km resolution
 mask_10km <- rast(ext(2479357.46078533, 6496360.77332511, 999661.06552765, 5337308.89627766), resolution = 10000, 
-                 crs = "EPSG:3035") # 1km resolution
+                 crs = "EPSG:3035") # 10km resolution
 
-# Well with this I have the plots over all years at the specific resolutions, but I need them separated for each year
+# Extract the cell numbers & coordinates from the study sites for the 1km resolution
 cells_1km <- cellFromXY(mask, cbind(pilot_species_df$x, pilot_species_df$y))
 cell_coords_1km <- xyFromCell(mask, cells_1km)
 
+# merge the data to the abundance data set
 pilot_species_df_1km <- pilot_species_df %>% mutate(cell = cells_1km) %>% 
   mutate(cell_x = cell_coords_1km[,1],
          cell_y = cell_coords_1km[,2]) %>%
   # clean data set
   select(year, Species = binomial, siteID = site_id, country, abundance, unit, cell, cell_x, cell_y)
 
-# clean the data set
-
-# Well with this I have the plots over all years at the specific resolutions, but I need them separated for each year
+# Extract the cell numbers & coordinates from the study sites for the 10km resolution
 cells_10km <- cellFromXY(mask_10km, cbind(pilot_species_df$x, pilot_species_df$y))
 cell_coords_10km <- xyFromCell(mask_10km, cells_10km)
 
+# merge the data to the abundance data set
 pilot_species_df_10km <- pilot_species_df %>% mutate(cell = cells_10km) %>% 
   mutate(cell_x = cell_coords_10km[,1],
          cell_y = cell_coords_10km[,2]) %>%
