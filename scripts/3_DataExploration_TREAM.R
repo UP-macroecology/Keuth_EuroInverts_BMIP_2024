@@ -196,3 +196,63 @@ ggplot(data=no_years_studysites, aes(x = reorder(site_id, no_years), y = no_year
   ggtitle("Sampled years per study site")+
   theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())+
   ylab("")
+
+# data frame for completeness of time series for every year
+completeness_timeseries_test <- data.frame(Year = c(min(TREAM$year):max(TREAM$year)))
+
+for (con_id in 1:length(countries)) {
+  test <- subset(TREAM, TREAM$country == countries[con_id])
+  test$site_id <- as.character(test$site_id)
+  test_list <- split(test, test$site_id)
+  sites <- unique(test$site_id)
+  
+  sampling_years_sites <- lapply(test_list, function(x){unique(x$year)})
+  
+  # add a column for every study country
+  for (i in 1:length(sites)){
+    completeness_timeseries_test$tmp <- NA
+    names(completeness_timeseries_test)[names(completeness_timeseries_test) == "tmp"] <- sites[i]
+  }
+  
+  # obtain completeness of time series (non sampled years are marked as NA, sampled years as "Yes")
+  for (k in 1:length(sites)){
+    for (i in min(TREAM$year):max(TREAM$year)) {
+      if(i %in% sampling_years_sites[[sites[k]]] == T){
+        completeness_timeseries_test[completeness_timeseries_test$Year == i, sites[k]] <- "Yes"
+      }
+    }
+  }
+  
+  # Plotting completeness of time series for every country
+  # code for the plot modified from the visdat package 
+  # actual function: vis_dat(df)
+  
+  # reorder dataframe to long format (kind of appending columns)
+  tmp <- completeness_timeseries_test %>%
+    pivot_longer(
+      cols = -Year,
+      names_to = "site_id",
+      values_to = "sampled",
+      values_transform = list(sampled = as.character)
+    ) %>%
+    arrange(Year, site_id, sampled)
+  
+  tmp$country <- countries[con_id]
+  
+  if (con_id == 1){
+    completeness_timeseries_test_long <- tmp
+  } else {
+    completeness_timeseries_test_long <- rbind(completeness_timeseries_test_long, tmp)
+  }
+}
+
+#Plot the completeness of sampled years per country
+ggplot(data = completeness_timeseries_test_long, aes(x = site_id, y = Year)) +
+  geom_raster(aes(fill = sampled))+
+  geom_hline(yintercept = 2011)+
+  scale_fill_manual("Sampled?", values = "#FF6666", labels = c("Yes", "No"))+ 
+  facet_wrap(~ country, scales = "free_x")+
+  theme_minimal() +
+  theme(axis.text.x = element_blank()) +
+  labs(x = "Site ID", y = "Year") +
+  ggtitle("Coverage of sampled years per country/ site ID")
