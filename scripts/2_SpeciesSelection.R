@@ -3,7 +3,7 @@
 # Plan:
 
 #1. remove all data before year 1990 and remove study sites with less than 20 years of sampling 
-#2. Classify the taxonLevel for each , i.e. which of these are species and which are genera or families. (This step can be excluded as we currently only consider species level)
+#2. Harmonise sampling units to Ind/m^2
 #3. Calculate the number of sites on which each of these taxa is found
 #4. Calculate the equivalent number of sites in the full dataset
 #5. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites)
@@ -22,6 +22,10 @@ library(terra)
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
+site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv") # GPS coordinates from the study site
+
+# add GPS locations & sampling unit to the data
+TREAM <- merge(TREAM, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y", "unit")], by = "site_id")
 
 # remove a mistake that happened in the binomial column for some reason
 TREAM[which(TREAM$binomial == "NA NA"), "binomial"] <- NA
@@ -45,8 +49,71 @@ TREAM_sub <- subset(TREAM, TREAM$years_studysite >= 20)
 length(unique(TREAM_sub$binomial)) #762
 length(unique(TREAM_sub$site_id)) #202
 
-# save the smaller data set with the "good" data
-#write.csv(TREAM_sub, "data/TREAM_gooddata.csv", row.names = F)
+#2. Harmonise sampling units to Ind/m^2
+unique(TREAM_sub$unit)
+# set new columns
+TREAM_sub$abundance_new <- NA
+TREAM_sub$unit_new <- NA
+
+# bring all sampling units to Ind/m^2 or Ind/sample
+for (i in 1:nrow(TREAM_sub)) {
+  if(TREAM_sub$unit[i] == "Ind/0.12 m^2"){
+    if(TREAM_sub$abundance[i] > 0){
+      TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i] * 8.4
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    } else {
+      TREAM_sub$abundance_new[i] <- 0
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    }
+  } else if(TREAM_sub$unit[i] == "Ind/1.25 m^2"){
+    if(TREAM_sub$abundance[i] > 0){
+      TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i] * 0.8
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    } else {
+      TREAM_sub$abundance_new[i] <- 0
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    }
+  } else if(TREAM_sub$unit[i] == "composite of 12 samples totaling Ind/0.6 m^2"){
+    if(TREAM_sub$abundance[i] > 0){
+      TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i] * 1.7
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    } else {
+      TREAM_sub$abundance_new[i] <- 0
+      TREAM_sub$unit_new[i] <- "Ind/m^2"
+    }
+  } else if(TREAM_sub$unit[i] == "Ind/ 5 subsamples"){
+    if(TREAM_sub$abundance[i] > 0){
+      TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i] / 5
+      TREAM_sub$unit_new[i] <- "Ind/sample"
+    } else {
+      TREAM_sub$abundance_new[i] <- 0
+      TREAM_sub$unit_new[i] <- "Ind/sample"
+    }
+  } else if(TREAM_sub$unit[i] == "Ind/sample"){
+    TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i]
+    TREAM_sub$unit_new[i] <- "Ind/sample"
+  } else if(TREAM_sub$unit[i] == "Ind/m^2"){
+    TREAM_sub$abundance_new[i] <- TREAM_sub$abundance[i]
+    TREAM_sub$unit_new[i] <- "Ind/m^2"
+  }
+}
+
+unique(TREAM_sub$unit_new)
+
+# harmonize both metrics together
+TREAM_X1 <- subset(TREAM_sub, TREAM_sub$unit_new == "Ind/m^2")
+TREAM_X2 <- subset(TREAM_sub, TREAM_sub$unit_new == "Ind/sample")
+
+TREAM_X2$abundance_new <- TREAM_X2$abundance_new * (mean(TREAM_X1$abundance_new)/ mean(TREAM_X2$abundance_new))
+TREAM_X2$unit_new <- "Ind/m^2"
+
+# remerge datasets
+TREAM_sub <- rbind(TREAM_X1, TREAM_X2)
+
+# save data set
+write.csv(TREAM_sub, "data/TREAM_gooddata_harmonised_unit.csv", row.names = F)
+
+TREAM_sub <- read.csv("data/TREAM_gooddata_harmonised_unit.csv", header = T)
 
 #3. Calculate the number of sites on which each of these taxa is found ------------
 species_info <- TREAM_sub %>% group_by(binomial) %>% summarise(nsite1 = n_distinct(site_id))
@@ -58,10 +125,6 @@ TREAM_sub2 <- subset(TREAM, TREAM$binomial %in% unique(species_info$binomial))
 species_info <- full_join(species_info, TREAM_sub2 %>% group_by(binomial) %>% summarise(nsite2 = n_distinct(site_id)), by = "binomial")
 
 #5. Calculate range extent as the Minimum Convex Polygon for each taxon using all the sites in the survey dataset (not just the 202 good sites) ----------
-
-#add GPS data of study sites
-site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv")
-TREAM <- merge(TREAM, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y")], by = "site_id")
 
 #Extract those species with more than two different study sites in the large data set (MCP can't be calculated for only two locations)
 species_reduced <- species_info[which(species_info$nsite2 > 2),]
@@ -81,6 +144,7 @@ TREAM.sf <- st_make_valid(TREAM.sf)
 #extract species (only keep species with more than two distinct locations), obtain convex hull and calculate area
 for (i in 1:nrow(species_info)) {
   tmp <- subset(TREAM.sf, TREAM.sf$binomial == unique(species_info$binomial)[i])
+  print(nrow(tmp))
   if(nrow(tmp) > 2){
     tmp <- st_convex_hull(st_union(tmp))
     range_coverage_df <- sum(st_area(st_make_valid(tmp)))
@@ -206,11 +270,9 @@ species_info[which(species_info$MCP2 == 0), "MCP2"] <- NA
 # calculate percentage of global range covered by our data
 species_info$perc_range_coverage <- round((species_info$MCP1/species_info$MCP2)*100,2)
 
-# change column name
-names(species_info)[names(species_info) == "binomial"] <- "name"
 
 # save the data
-#write.csv(species_info, "data/species_information_TREAM_before_selection.csv", row.names = F)
+write.csv(species_info, "data/species_information_TREAM_before_selection.csv", row.names = F)
 
 species_info <- read.csv("data/species_information_TREAM_before_selection.csv", header = T)
 
@@ -240,9 +302,6 @@ species_info_final <- species_info_final %>% mutate(range_class = factor(dplyr::
 # be present on more than 10 sites and cover over 25% of the global range
 species_info_final <- subset(species_info_final, nsite1 >= 10 & perc_range_coverage >= 25)
 
-# rename the columns
-names(species_info_final)[names(species_info_final) == "name"] <- "binomial"
-
 #10. With the sub data set calculate a simple trend in abundance as log(N) ~ year -----------
 
 # Add column to data set with all information
@@ -256,14 +315,14 @@ for (i in 1:length(unique(species_info_final$binomial))) {
   tmp <-  subset(TREAM_sub, TREAM_sub$binomial == unique(species_info_final$binomial)[i]) #extract data of single species
   
   # use a different model when only data for one study site is available (linear model can't calculate regression over one level)
-  model <- lm(log(abundance + 1) ~ year, data = tmp)
+  model <- lm(log(abundance_new + 1) ~ year, data = tmp)
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"trend"] <- model[["coefficients"]][["year"]]
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"p.value"] <- summary(model)$coefficients[, 4]["year"] #overall_p(model)
   species_info_final[which(species_info_final$binomial == unique(species_info_final$binomial)[i]),"std.error"] <- summary(model)$coefficients[, 2]["year"] #summary(model)$sigma #summary(model)$coefficients[, 2]
   
   # Plot the abundance trend calculations
-  plot(log(abundance + 1) ~ jitter(year), data = tmp, main = unique(tmp$binomial))
-  abline(lm(log(abundance + 1) ~ year, data = tmp), col = "red", lwd = 2)
+  plot(log(abundance_new + 1) ~ jitter(year), data = tmp, main = unique(tmp$binomial))
+  abline(lm(log(abundance_new + 1) ~ year, data = tmp), col = "red", lwd = 2)
 }
 dev.off()
 
@@ -283,3 +342,24 @@ dev.off
 
 # save data set
 write.csv(species_info_final, "data/species_information_TREAM_lm.csv", row.names = F)
+
+# nyrs = 2020 - 1990
+# 
+# species_info_final <- species_info_final %>%
+#   
+#   tidyr::drop_na() %>%
+#   
+#   mutate(perc_trend = 100 * (exp(trend * nyrs) - 1))
+# 
+# 
+# species_info_final <- species_info_final %>% mutate(trend_class = case_when(is.na(p.value) | is.na(perc_trend)            ~ NA_character_,
+#                                                                             
+#                                                                             perc_trend >=  5            ~ "increasing",
+#                                                                             
+#                                                                             perc_trend <= -5            ~ "declining",
+#                                                                             
+#                                                                             abs(perc_trend) < 5 ~ "stable",
+#                                                                             
+#                                                                             TRUE ~ "other"))
+# 
+# table(species_info_final$trend_class, species_info_final$range_class)
