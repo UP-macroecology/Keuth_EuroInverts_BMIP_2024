@@ -19,6 +19,8 @@ library(sp)
 library(rgbif)
 library(sf)
 library(terra)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 # Load data
 TREAM <- read.csv("data/TREAM_zeros.csv")
@@ -327,8 +329,28 @@ for (i in 1:length(unique(species_info_final$binomial))) {
 dev.off()
 
 # Plot the map of data distribution
-europe <- readRDS("data/Europe_vect.rds") # I already had this data set prepared
-europe <- unwrap(europe)
+# Download data to world extent
+world_map <- ne_countries(scale = 50, returnclass = 'sf')
+
+# extract European countries
+europeanUnion <- c("Austria", "Andorra", "Belgium","Bulgaria","Croatia","Cyprus",
+                   "Czechia","Denmark","Estonia","Finland","France",
+                   "Germany","Greece","Hungary","Ireland","Italy","Latvia",
+                   "Lithuania","Luxembourg","Malta","Netherlands", "Norway", "Poland",
+                   "Portugal","Romania","Slovakia","Slovenia","Spain",
+                   "Sweden", "Switzerland", "United Kingdom")
+
+europe_map <- world_map %>% filter(name %in% europeanUnion)
+
+# Separate MultiPolygons into single polygons to remove islands I am not interested in
+europe_single_polygons <- st_cast(europe_map, "POLYGON")
+
+# vectorize map of europe
+europe_vect <- vect(europe_single_polygons)
+
+# crop to smaller extent to extract islands
+new_extent <- ext(-10, 34, 28, 70.06484375)
+europe <- crop(europe_vect, new_extent)
 
 pdf("plots/map_TREAM_points.pdf")
 for (i in 1:length(unique(species_info_final$binomial))) {
