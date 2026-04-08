@@ -3,18 +3,15 @@
 
 # Load packages
 library(terra)
-library(rnaturalearth)
-library(rnaturalearthdata)
+library(dplyr)
+#library(rnaturalearth)
+#library(rnaturalearthdata)
 
 # Read in data
-TREAM <- read.csv("data/TREAM_gooddata.csv", header = T) #only data after 1990 and study sites with more than 20 years of sampling
-site_GPS <- read.csv("data/TREAM/TREAM_siteLevel.csv") # GPS coordinates from the study site
+TREAM <- read.csv("data/TREAM_gooddata_harmonised_unit.csv", header = T) #only data after 1990 and study sites with more than 20 years of sampling
 
 # extract pilot species
 pilot_species_df <- subset(TREAM, TREAM$binomial == "Agapetus ochripes")
-
-# add GPS locations & sampling unit to the data
-pilot_species_df <- merge(pilot_species_df, site_GPS[,c("site_id", "Longitude_X", "Latitude_Y", "unit")], by = "site_id")
 
 # Transform the data into a spatial object to reproject it
 pilot_species <- vect(pilot_species_df, geom=c("Longitude_X", "Latitude_Y"))
@@ -33,15 +30,37 @@ mask_10km <- rast(ext(2479357.46078533, 6496360.77332511, 999661.06552765, 53373
                  crs = "EPSG:3035") # 10km resolution
 
 # Extract the cell numbers & coordinates from the study sites for the 1km resolution
-cells_1km <- cellFromXY(mask, cbind(pilot_species_df$x, pilot_species_df$y))
-cell_coords_1km <- xyFromCell(mask, cells_1km)
+cells_1km <- cellFromXY(mask_1km, cbind(pilot_species_df$x, pilot_species_df$y))
+cell_coords_1km <- xyFromCell(mask_1km, cells_1km)
 
 # merge the data to the abundance data set
 pilot_species_df_1km <- pilot_species_df %>% mutate(cell = cells_1km) %>% 
   mutate(cell_x = cell_coords_1km[,1],
          cell_y = cell_coords_1km[,2]) %>%
   # clean data set
-  select(year, Species = binomial, siteID = site_id, country, abundance, unit, cell, cell_x, cell_y)
+  select(year, Species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
+
+# check if different study sites are within the same cell
+result <- pilot_species_df_1km %>%
+  group_by(cell) %>%
+  summarise(
+    n_unique_studies = n_distinct(siteID),
+    siteIDs = paste(unique(siteID), collapse = ", ")
+  ) %>%
+  filter(n_unique_studies > 1)
+
+print(result)
+
+# split data into training and validation data
+pilot_species_training <- pilot_species_df_1km %>% 
+  filter(year <= 2011)
+
+pilot_species_testing <- pilot_species_df_1km %>% 
+  filter(year > 2012)
+
+# save both data sets
+write.csv(pilot_species_training, file = "data/European_aquatic_invert_Agapetus_ochripes_1990_2011_1km.csv", row.names = F)
+write.csv(pilot_species_testing, file = "data/European_aquatic_invert_Agapetus_ochripes_2012_2020_1km.csv", row.names = F)
 
 # Extract the cell numbers & coordinates from the study sites for the 10km resolution
 cells_10km <- cellFromXY(mask_10km, cbind(pilot_species_df$x, pilot_species_df$y))
@@ -52,12 +71,29 @@ pilot_species_df_10km <- pilot_species_df %>% mutate(cell = cells_10km) %>%
   mutate(cell_x = cell_coords_10km[,1],
          cell_y = cell_coords_10km[,2]) %>%
   # clean data set
-  select(year, Species = binomial, siteID = site_id, country, abundance, unit, cell, cell_x, cell_y)
+  select(year, Species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
+
+# check if different study sites are within the same cell
+result <- pilot_species_df_10km %>%
+  group_by(cell) %>%
+  summarise(
+    n_unique_studies = n_distinct(siteID),
+    siteIDs = paste(unique(siteID), collapse = ", ")
+  ) %>%
+  filter(n_unique_studies > 1)
+
+print(result)
+
+# split data into training and validation data
+pilot_species_training <- pilot_species_df_10km %>% 
+  filter(year <= 2011)
+
+pilot_species_testing <- pilot_species_df_10km %>% 
+  filter(year > 2012)
 
 # save both data sets
-write.csv(pilot_species_df_1km, file = "data/European_aquatic_invert_Agapetus_ochripes_1992_2019_1km.csv", row.names = F)
-write.csv(pilot_species_df_10km, file = "data/European_aquatic_invert_Agapetus_ochripes_1992_2019_10km.csv", row.names = F)
-
+write.csv(pilot_species_training, file = "data/European_aquatic_invert_Agapetus_ochripes_1990_2011_10km.csv", row.names = F)
+write.csv(pilot_species_testing, file = "data/European_aquatic_invert_Agapetus_ochripes_2012_2020_10km.csv", row.names = F)
 
 # 
 # # I now transform my spatvector object with the points into a spatraster
