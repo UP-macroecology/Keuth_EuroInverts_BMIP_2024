@@ -15,6 +15,7 @@ pilot_species_df <- subset(TREAM, TREAM$binomial == "Agapetus ochripes")
 
 # Transform the data into a spatial object to reproject it
 pilot_species <- vect(pilot_species_df, geom=c("Longitude_X", "Latitude_Y"))
+crs(pilot_species) <- "EPSG:4326"
 pilot_species <- project(pilot_species, "EPSG:3035")
 
 # extract the reprojected coordinates from the spatial data frame
@@ -42,7 +43,7 @@ pilot_species_df_1km <- pilot_species_df %>% mutate(cell = cells_1km) %>%
 
 # check if different study sites are within the same cell
 result <- pilot_species_df_1km %>%
-  group_by(cell) %>%
+  group_by(cell, year) %>%
   summarise(
     n_unique_studies = n_distinct(siteID),
     siteIDs = paste(unique(siteID), collapse = ", ")
@@ -75,7 +76,7 @@ pilot_species_df_10km <- pilot_species_df %>% mutate(cell = cells_10km) %>%
 
 # check if different study sites are within the same cell
 result <- pilot_species_df_10km %>%
-  group_by(cell) %>%
+  group_by(cell, year) %>%
   summarise(
     n_unique_studies = n_distinct(siteID),
     siteIDs = paste(unique(siteID), collapse = ", ")
