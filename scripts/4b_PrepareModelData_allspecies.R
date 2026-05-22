@@ -36,6 +36,17 @@ selected_species <- c("Leuctra geniculata", "Simulium noelleri", "Athripsodes at
                       "Sialis nigripes", "Anabolia nervosa", "Kageronia fuscogrisea", "Platambus maculatus", "Polycentropus flavomaculatus")
 
 
+# Investigate the selected species
+for (i in 1:length(selected_species)){
+  print(selected_species[i])
+  
+  TREAM_sub <- subset(TREAM, TREAM$binomial == selected_species[i])
+  print("Range of Years:")
+  print(range(TREAM_sub$year))
+  print(paste("Number of occurrences:", nrow(TREAM_sub)))
+  print(paste("Number of abundance counts", nrow(TREAM_sub[TREAM_sub$abundance_new > 0, ])))
+}
+
   # extract pilot species
   species_df <- subset(TREAM, TREAM$binomial %in% selected_species)
   
@@ -197,5 +208,5 @@ species_testing_agg <- species_df_10km_agg %>%
 
 # save both data sets
 write.csv(species_training_agg, file = "data/European_aquatic_invert_1990_2011_10km_cell_level.csv", row.names = F)
-write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_10km.csv_cell_level", row.names = F)
+write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_1km.csv_cell_level", row.names = F)
 
