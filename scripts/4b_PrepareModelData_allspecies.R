@@ -4,8 +4,6 @@
 # Load packages
 library(terra)
 library(dplyr)
-#library(rnaturalearth)
-#library(rnaturalearthdata)
 
 # Read in data
 TREAM <- read.csv("data/TREAM_gooddata_harmonised_unit.csv", header = T) #only data after 1990 and study sites with more than 20 years of sampling
@@ -43,8 +41,8 @@ for (i in 1:length(selected_species)){
   TREAM_sub <- subset(TREAM, TREAM$binomial == selected_species[i])
   print("Range of Years:")
   print(range(TREAM_sub$year))
-  print(paste("Number of occurrences:", nrow(TREAM_sub)))
-  print(paste("Number of abundance counts", nrow(TREAM_sub[TREAM_sub$abundance_new > 0, ])))
+  print(paste("Number of data points:", nrow(TREAM_sub)))
+  print(paste("Number of occurrences", nrow(TREAM_sub[TREAM_sub$abundance_new > 0, ])))
 }
 
   # extract pilot species
@@ -76,7 +74,7 @@ for (i in 1:length(selected_species)){
     mutate(cell_x = cell_coords_1km[,1],
            cell_y = cell_coords_1km[,2]) %>%
     # clean data set
-    select(year, Species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
+    select(year, species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
   
   # split data into training and validation data
   species_training <- species_df_1km %>% 
@@ -87,7 +85,7 @@ for (i in 1:length(selected_species)){
   
   # save both data sets
   write.csv(species_training, file = "data/European_aquatic_invert_1990_2011_1km_site_level.csv", row.names = F)
-  write.csv(species_testing, file = "data/European_aquatic_invert_2012_2020_1km.csv_site_level", row.names = F)
+  write.csv(species_testing, file = "data/European_aquatic_invert_2012_2020_1km_site_level.csv", row.names = F)
   
   # check if different study sites are within the same cell
   result <- species_df_1km %>%
@@ -99,7 +97,6 @@ for (i in 1:length(selected_species)){
     filter(n_unique_studies > 1)
   
   print(result)
-  # one cell contains several studyIDs, we will therefore provide aggregated data as well as separate data
   
   for(s in 1:length(selected_species)){
     # Log
@@ -141,7 +138,7 @@ for (i in 1:length(selected_species)){
   
   # save both data sets
   write.csv(species_training_agg, file = "data/European_aquatic_invert_1990_2011_1km_cell_level.csv", row.names = F)
-  write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_1km.csv_cell_level", row.names = F)
+  write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_1km_cell_level.csv", row.names = F)
   
   
   # Extract the cell numbers & coordinates from the study sites for the 10km resolution
@@ -153,7 +150,7 @@ for (i in 1:length(selected_species)){
     mutate(cell_x = cell_coords_10km[,1],
            cell_y = cell_coords_10km[,2]) %>%
     # clean data set
-    select(year, Species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
+    select(year, species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
   
 # split data into training and validation data
 species_training <- species_df_10km %>% 
@@ -208,5 +205,4 @@ species_testing_agg <- species_df_10km_agg %>%
 
 # save both data sets
 write.csv(species_training_agg, file = "data/European_aquatic_invert_1990_2011_10km_cell_level.csv", row.names = F)
-write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_1km.csv_cell_level", row.names = F)
-
+write.csv(species_testing_agg, file = "data/European_aquatic_invert_2012_2020_10km_cell_level.csv", row.names = F)
