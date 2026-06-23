@@ -20,11 +20,11 @@ The final species and the pilot species are selected based on their range class 
 
 *Script:* 4a_PrepareModelData_pilotspecies_TREAM
 
-The Abundance data sets are prepared. These data sets are required for the models for the BMIP project. Here, the data for the pilot species is prepared. Data files are prepared at a 1km and 10km resolution and at cell level (aggregated abundance counts over several study sites) and at site level.
+This script prepares the abundance datasets used as inputs for the BMIP project models. Here, the data for the pilot species is prepared. Data files are prepared at a 1km and 10km resolution and at cell level (aggregated abundance counts over several study sites) and at site level.
 
 *Script:* 4b_PrepareModelData_allspecies_TREAM
 
-The Abundance data sets are prepared. These data sets are required for the models for the BMIP project. Here, the data for the 18 species is prepared. Data files are prepared at a 1km and 10km resolution and at cell level (aggregated abundance counts over several study sites) and at site level.
+This script prepares the abundance datasets used as inputs for the BMIP project models. Here, the data for the 18 species is prepared. Data files are prepared at a 1km and 10km resolution and at cell level (aggregated abundance counts over several study sites) and at site level.
 
 ### Data exploration
 *Script:* 4_DataExploration_TREAM.R
