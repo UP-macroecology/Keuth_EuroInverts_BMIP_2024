@@ -1,7 +1,18 @@
-# Work on the selection of species for inclusion
+# Prepare TREAM data set (Welti et al. (2024) https://doi.org/10.1038/s41597-024-03445-3)
 
-# Plan:
 
+#----------------------------------------------------------
+
+# ------------------------------------------------------- #
+#                     02. Preparing Data                  #
+# ------------------------------------------------------- #
+
+
+#----------------------------------------------------------
+
+# Preparing the data to select the final species
+
+# The following steps are applied
 #1. remove all data before year 1990 and remove study sites with less than 20 years of sampling 
 #2. Harmonise sampling units to Ind/m^2
 #3. Calculate the number of sites on which each of these taxa is found
@@ -51,7 +62,7 @@ TREAM_sub <- subset(TREAM, TREAM$years_studysite >= 20)
 length(unique(TREAM_sub$binomial)) #762
 length(unique(TREAM_sub$site_id)) #202
 
-#2. Harmonise sampling units to Ind/m^2
+#2. Harmonise sampling units to Ind/m^2 -------
 unique(TREAM_sub$unit)
 # set new columns
 TREAM_sub$abundance_new <- NA
@@ -170,7 +181,7 @@ for (i in 1:nrow(species_info)) {
 
 #save(species_info, file = "data/species_info_incomplete.Rdata")
 
-# #6. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP -----
+#6. Download records from GBIF for each taxon. Add the GBIF records to the site locations for each species and calculate a new MCP -----
 
 # remove all species with NA in taxonKey
 # species_gbif <- species_info[which(!is.na(species_info$taxonKey)),]
@@ -278,7 +289,7 @@ write.csv(species_info, "data/species_information_TREAM_before_selection.csv", r
 
 species_info <- read.csv("data/species_information_TREAM_before_selection.csv", header = T)
 
-#7 Pre-select the species
+#7 Pre-select the species ------------
 # Removing non-insect species, 
 
 insectGroups <- c("Coleoptera",
@@ -291,7 +302,7 @@ insectGroups <- c("Coleoptera",
 
 species_info_final <- subset(species_info, order %in% insectGroups)
 
-# 8. Calcualte the range classes
+#8. Calculate the range classes --------
 species_info_final <- species_info_final %>% mutate(range_class = factor(dplyr::ntile(MCP2, 3),
                               
                               levels = 1:3,
@@ -299,7 +310,7 @@ species_info_final <- species_info_final %>% mutate(range_class = factor(dplyr::
                               labels = c("small", "medium", "large")))
 
 
-# 9. Apply second filtering step
+#9. Apply second filtering step ----------
 
 # be present on more than 10 sites and cover over 25% of the global range
 species_info_final <- subset(species_info_final, nsite1 >= 10 & perc_range_coverage >= 25)
@@ -364,24 +375,3 @@ dev.off
 
 # save data set
 write.csv(species_info_final, "data/species_information_TREAM_lm.csv", row.names = F)
-
-# nyrs = 2020 - 1990
-# 
-# species_info_final <- species_info_final %>%
-#   
-#   tidyr::drop_na() %>%
-#   
-#   mutate(perc_trend = 100 * (exp(trend * nyrs) - 1))
-# 
-# 
-# species_info_final <- species_info_final %>% mutate(trend_class = case_when(is.na(p.value) | is.na(perc_trend)            ~ NA_character_,
-#                                                                             
-#                                                                             perc_trend >=  5            ~ "increasing",
-#                                                                             
-#                                                                             perc_trend <= -5            ~ "declining",
-#                                                                             
-#                                                                             abs(perc_trend) < 5 ~ "stable",
-#                                                                             
-#                                                                             TRUE ~ "other"))
-# 
-# table(species_info_final$trend_class, species_info_final$range_class)
