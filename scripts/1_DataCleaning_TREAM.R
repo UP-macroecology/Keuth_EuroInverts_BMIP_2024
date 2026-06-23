@@ -489,6 +489,9 @@ TREAM_long2 <- lapply(TREAM_long, function(x){
 #elongate data set by binding rows
 TREAM_long2 <- TREAM_long2 %>% bind_rows(.id = "site_id")
 
+# transform site_id into integer
+TREAM_long2$site_id <- as.integer(TREAM_long2$site_id)
+
 #add new columns and correspondent information to it
 TREAM_long2$taxon_level <- "s"
 TREAM_long2[c("genus", "species")] <- str_split_fixed(TREAM_long2$binomial, " ", 2)
