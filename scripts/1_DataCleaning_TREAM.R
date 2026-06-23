@@ -1,6 +1,16 @@
-# Preprocessing the TREAM data set
-# The data set was published by Welti et al. (2024) https://doi.org/10.1038/s41597-024-03445-3
-# Goal: Cleaning the columns, harmonizing the taxon names, adding structural zeros
+# Prepare TREAM data set (Welti et al. (2024) https://doi.org/10.1038/s41597-024-03445-3)
+
+
+#----------------------------------------------------------
+
+# ------------------------------------------------------- #
+#                     01. Cleaning Data                   #
+# ------------------------------------------------------- #
+
+
+#----------------------------------------------------------
+
+# Cleaning of the different columns, harmonsing the taxa and adding structural zeros
 
 # Load packages
 library(taxize)
@@ -34,7 +44,7 @@ TREAM[which(TREAM$country == "Finland"), "date"] <- paste(TREAM[which(TREAM$coun
 # remove rows with NA (almost all cells are empty in this rows)
 TREAM <- TREAM[which(!is.na(TREAM$site_id)),]
 
-# clean species column and create a column with the binomial species name ---------
+# Clean species column and create a column with the binomial species name ---------
 #remove species appendices
 TREAM$species <- str_remove(TREAM$species, " Lv.")
 TREAM$species <- str_remove(TREAM$species, " Ad.")
@@ -80,7 +90,7 @@ TREAM[which(TREAM$binomial == "Orthocladiini COP"),"binomial"] <- NA
 TREAM[which(TREAM$species == "Gr."), "species"] <- NA
 TREAM[which(TREAM$species == "COP"), "species"] <- NA
 
-# check if the binomial names are correct (using the taxize package) -----------
+# Check if the binomial names are correct (using the taxize package) -----------
 
 # obtain binomial species names and transform it into a data frame
 species <- as.data.frame(sort(unique(TREAM$binomial)))
@@ -252,7 +262,7 @@ TREAM <- TREAM[, -which(names(TREAM) %in% c("Genus_corrected", "Species_correcte
 # back transform data set to data frame
 TREAM <- as.data.frame(TREAM)
 
-# clean the genus column -----------
+# Clean the genus column -----------
 
 # set Genus to NA, if it wasn't determined
 TREAM[which(TREAM$species == "Gen. sp."), "Genus.group"] <- NA
@@ -262,7 +272,7 @@ TREAM$species[TREAM$species %in% c("sp.", "Gen. sp.", "s.")] <- NA
 # rename column
 names(TREAM)[names(TREAM) == "Genus.group"] <- "genus"
 
-# check if the family names are correct (using the taxize package) --------
+# Check if the family names are correct (using the taxize package) --------
 
 # obtain families name with outside function
 # obtain the genus level for every single identification
@@ -385,7 +395,7 @@ TREAM[which(TREAM$genus == "Tipula (Yamatotipula)"), "genus"] <- "Tipula"
 TREAM[which(TREAM$genus == "Vejdovskiella"), "genus"] <- "Vejdovskyella"
 TREAM[which(TREAM$genus %in% c("Simulium (Boophthora)", "Simulium (Eusimulium)", "Simulium (Nevermannia)", "Simulium (Odagmia)", "Simulium (Simulium)", "Simulium (Wilhelmia)")), "genus"] <- "Simulium"
 
-# check if the order names are correct (using the taxize package) --------
+# Check if the order names are correct (using the taxize package) --------
 # extract the single family values
 families <- sort(unique(TREAM$Family))
 
@@ -422,7 +432,7 @@ TREAM <- TREAM %>% relocate(c(Family, genus), .after = Group) %>% relocate(order
 names(TREAM)[names(TREAM) == "Family"] <- "family"
 names(TREAM)[names(TREAM) == "Group"] <- "group"
 
-# last bit of cleaning and adding the level to which the individual was identified ----
+# Last bit of cleaning and adding the level to which the individual was identified ----
 
 # remove a mistake that happened in the binomial column for some reason
 TREAM[which(TREAM$binomial == "NA NA"), "binomial"] <- NA
@@ -437,7 +447,7 @@ TREAM[which(is.na(TREAM$taxon_level)), "taxon_level"] <- "c"
 # save data set
 write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
 
-# place structural 0 in the data set ------------
+# Place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
 #TREAM$site_id <- as.character(TREAM$site_id)
 
