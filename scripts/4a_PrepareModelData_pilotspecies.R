@@ -1,5 +1,20 @@
-# Preparation of abundance time series of the pilot species for BMIP
-# Data should be given in two spatial resolutions (matching to the climate data): 1km, 10km
+# Prepare TREAM data set (Welti et al. (2024) https://doi.org/10.1038/s41597-024-03445-3)
+
+
+#------------------------------------------------------------------
+
+# --------------------------------------------------------------- #
+#         04a. Prepare Model Data (Pilot species)                 #
+# --------------------------------------------------------------- #
+
+
+#------------------------------------------------------------------
+
+
+# Preparation of the data set for the modelling
+
+# Data is prepared in two spatial resolutions (matching to the climate data): 1km, 10km
+# Data is prepared in two ways (at cell level (aggregated abundances per cell) and at site level)
 
 # Load packages
 library(terra)
@@ -39,17 +54,6 @@ pilot_species_df_1km <- pilot_species_df %>% mutate(cell = cells_1km) %>%
   # clean data set
   select(year, species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
 
-# check if different study sites are within the same cell
-result <- pilot_species_df_1km %>%
-  group_by(cell, year) %>%
-  summarise(
-    n_unique_studies = n_distinct(siteID),
-    siteIDs = paste(unique(siteID), collapse = ", ")
-  ) %>%
-  filter(n_unique_studies > 1)
-
-print(result)
-
 # split data into training and validation data
 pilot_species_training <- pilot_species_df_1km %>% 
   filter(year <= 2011)
@@ -61,7 +65,6 @@ pilot_species_testing <- pilot_species_df_1km %>%
 write.csv(pilot_species_training, file = "data/European_aquatic_invert_Agapetus_ochripes_1990_2011_1km_site_level.csv", row.names = F)
 write.csv(pilot_species_testing, file = "data/European_aquatic_invert_Agapetus_ochripes_2012_2020_1km_site_level.csv", row.names = F)
 
-  
 #Test if there are duplicated cells
 result <- pilot_species_df_1km %>%
   group_by(cell, year) %>%
@@ -100,17 +103,6 @@ pilot_species_df_10km <- pilot_species_df %>% mutate(cell = cells_10km) %>%
          cell_y = cell_coords_10km[,2]) %>%
   # clean data set
   select(year, species = binomial, siteID = site_id, country, abundance = abundance_new, unit = unit_new, cell, cell_x, cell_y)
-
-# check if different study sites are within the same cell
-result <- pilot_species_df_10km %>%
-  group_by(cell, year) %>%
-  summarise(
-    n_unique_studies = n_distinct(siteID),
-    siteIDs = paste(unique(siteID), collapse = ", ")
-  ) %>%
-  filter(n_unique_studies > 1)
-
-print(result)
 
 # split data into training and validation data
 pilot_species_training <- pilot_species_df_10km %>% 
