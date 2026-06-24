@@ -118,7 +118,7 @@ for(s in 1:length(selected_species)){
   print(selected_species[s])
   
   # subset dataset to extract species
-  tmp <- subset(species_df_1km, species_df_1km$Species == selected_species[s])
+  tmp <- subset(species_df_1km, species_df_1km$species == selected_species[s])
   
   #Test if there are duplicated cells
   result <- tmp %>%
@@ -183,7 +183,7 @@ for(s in 1:length(selected_species)){
   print(selected_species[s])
   
   # subset dataset to extract species
-  tmp <- subset(species_df_10km, species_df_10km$Species == selected_species[s])
+  tmp <- subset(species_df_10km, species_df_10km$species == selected_species[s])
   
   #Test if there are duplicated cells
   result <- tmp %>%
