@@ -449,7 +449,6 @@ write.csv(TREAM, "data/TREAM_preprocessed.csv", row.names = F)
 
 # Place structural 0 in the data set ------------
 TREAM <- read.csv("data/TREAM_preprocessed.csv")
-#TREAM$site_id <- as.character(TREAM$site_id)
 
 # remove data with wrong dates (i.e. Italy doesn't specify a date but a monthly span)
 TREAM <- TREAM[!is.na(TREAM$date),]
@@ -482,7 +481,7 @@ TREAM_long <- lapply(TREAM_list, function(x){
   return(df_long)
 })
 
-#Remove data sets of study sites without any species (i.e. only one column, as for those datas ets no structural 0 for the species exist)
+#Remove data sets of study sites without any species (i.e. only one column, as for those datasets no structural 0 for the species exist)
 sites_wo_species <- lapply(TREAM_long, function(x){ncol(x)})
 sites_wo_species <- as.data.frame(do.call(rbind, sites_wo_species))
 sites_wo_species <- sites_wo_species %>% tibble::rownames_to_column(., "site_id") %>% filter(., V1 > 1) 

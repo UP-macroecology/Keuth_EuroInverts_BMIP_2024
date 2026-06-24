@@ -10,7 +10,8 @@
 
 #----------------------------------------------------------
 
-# Selecting the species
+# Selecting the 18 species + Pilot species for the BMIP project
+# We select two species per range class (small, medium, large) and trend class (increasing, stable, decreasing) combination (= 18 species)
 
 # Load packages
 library(tidyr)
@@ -18,7 +19,7 @@ library(dplyr)
 library(ggplot2)
 
 # Load data
-df <- read.csv("species_information_TREAM_lm_new.csv")
+df <- read.csv("species_information_TREAM_lm.csv", header = T)
 
 # Tidy NA data
 nyrs = 2020 - 1990
@@ -57,7 +58,7 @@ View(species_groups[[1]])
 ## SELECTED SPECIES
 
 ## Pilot species
-# Agapetus ochripes? 
+# Agapetus ochripes
 
 ## Small declining
 
@@ -77,9 +78,7 @@ View(species_groups[[1]])
 ## Small increasing
 
 # Simulium angustitarse
-# Simulium trifasciatum - not great
-# Simulium vernum
-
+# Simulium trifasciatum
 
 ## Medium increasing
 

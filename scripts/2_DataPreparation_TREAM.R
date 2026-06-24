@@ -116,17 +116,15 @@ unique(TREAM_sub$unit_new)
 # harmonize both metrics together
 TREAM_X1 <- subset(TREAM_sub, TREAM_sub$unit_new == "Ind/m^2")
 TREAM_X2 <- subset(TREAM_sub, TREAM_sub$unit_new == "Ind/sample")
-
 TREAM_X2$abundance_new <- TREAM_X2$abundance_new * (mean(TREAM_X1$abundance_new)/ mean(TREAM_X2$abundance_new))
 TREAM_X2$unit_new <- "Ind/m^2"
+# with this calculation we assume that the volume of water is the same in each sample and use this as a basis to transform the dataset into the same unit
 
 # remerge datasets
 TREAM_sub <- rbind(TREAM_X1, TREAM_X2)
 
 # save data set
 write.csv(TREAM_sub, "data/TREAM_gooddata_harmonised_unit.csv", row.names = F)
-
-TREAM_sub <- read.csv("data/TREAM_gooddata_harmonised_unit.csv", header = T)
 
 #3. Calculate the number of sites on which each of these taxa is found ------------
 species_info <- TREAM_sub %>% group_by(binomial) %>% summarise(nsite1 = n_distinct(site_id))
